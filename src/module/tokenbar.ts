@@ -34,15 +34,15 @@ export class TokenBar extends Application {
 
     /* -------------------------------------------- */
 
-    /** @override */
+  /** @override */
 	static get defaultOptions() {
     //@ts-ignore
     return mergeObject(super.defaultOptions, {
         id: "tokenbar",
-        template: "./modules/combatdetails/templates/tokenbar.html",
+        template: `/modules/${MODULE_NAME}/templates/tokenbar.html`,
         popOut: false
     });
-    }
+  }
 
 	/* -------------------------------------------- */
 
@@ -393,49 +393,3 @@ export class TokenBar extends Application {
         else this.collapse();
     }
 }
-
-// Hooks.on('renderTokenBar', (app, html) => {
-//     CombatDetails.tokenbar.setPos().show();
-//     //CombatDetails.tokenbar._getTokensByScene();
-//     let gMovement = game.settings.get(MODULE_NAME, "movement");
-//     $('.token-movement[data-movement="' + gMovement + '"]', html).addClass('active');
-//     $('.token-movement[data-movement="combat"]', html).toggleClass('disabled', game.combats.active?.started !== true);
-//     $(app.tokens).each(function () {
-//         let tMovement = this.token.getFlag(MODULE_NAME, "movement");
-//         if (tMovement != undefined && tMovement != gMovement) {
-//             $('.token[data-token-id="' + this.id + '"] .movement-icon', html).attr('movement', tMovement);
-//         }
-//     });
-// });
-
-// Hooks.on("ready", () => {
-//     if (game.user.isGM && game.settings.get(MODULE_NAME, "show-token-bar")) {
-//         CombatDetails.tokenbar = new TokenBar(undefined);
-//         CombatDetails.tokenbar._getTokensByScene();
-//         CombatDetails.tokenbar.render(true);
-//     }
-// });
-
-
-// Hooks.on('canvasReady', () => {
-//     //CombatDetails.tokenbar._getTokensByScene();
-//     //$('.token-action-bar .token-list', CombatDetails.tokenbar.element).empty();
-//     if (game.user.isGM && CombatDetails.tokenbar != undefined) {
-//         CombatDetails.tokenbar._getTokensByScene();
-//         CombatDetails.tokenbar.render(true);
-//     }
-// });
-
-// Hooks.on("createToken", (token) => {
-//     if (game.user.isGM && CombatDetails.tokenbar != undefined) {
-//         CombatDetails.tokenbar._getTokensByScene();
-//         CombatDetails.tokenbar.render(true);
-//     }
-// });
-
-// Hooks.on("deleteToken", (token) => {
-//     if (game.user.isGM && CombatDetails.tokenbar != undefined) {
-//         CombatDetails.tokenbar._getTokensByScene();
-//         CombatDetails.tokenbar.render(true);
-//     }
-// });

@@ -2,10 +2,9 @@ import { warn, error, debug, i18n, i18nFormat, log } from "../combatdetails";
 import { AssignXP, AssignXPApp } from "./assignxp";
 import { CombatDetails, combatposition, volume } from "./combatdetailsimpl";
 import { ContestedRoll } from "./contestedroll";
+import { SavingThrow } from "./savingthrow";
 import { MODULE_NAME } from './settings';
 import { TokenBar } from "./tokenbar";
-//@ts-ignore
-// import { KeybindLib } from "/modules/keybind-lib/keybind-lib.js";
 
 // const previewer = new SoundPreviewerApplication();
 
@@ -16,6 +15,19 @@ export let readyHooks = async () => {
   // ==========================================
   // Combat Details Impl
   // ==========================================
+
+  // CONFIG.controlIcons.visibility = "modules/conditions5e/icons/invisible.svg";
+
+  /*
+  Hotbar.prototype.__get_defaultOptions = function () {
+      return mergeObject(Hotbar.super.defaultOptions, {
+          id: "hotbar",
+          template: "templates/hud/hotbar.html",
+          popOut: false,
+          dragDrop: [{ dragSelector: ".macro-icon", dropSelector: "#macro-list,.macro-list" }]
+      });
+  };*/
+
 
   //@ts-ignore
   libWrapper.register(MODULE_NAME, 'Token.prototype._canDrag', CombatDetails.combatDetailsTokenPrototypeCanDragHandler, 'MIXED');
@@ -360,6 +372,85 @@ export let readyHooks = async () => {
           CombatDetails.tokenbar._getTokensByScene();
           CombatDetails.tokenbar.render(true);
       }
+  });
+
+  // ====================================
+  // Saving Throw
+  // ====================================
+
+  Hooks.on("renderChatMessage", (message, html, data) => {
+    const svgCard = html.find(".combatdetail-message.savingthrow");
+    if (svgCard.length !== 0) {
+
+        if (!game.user.isGM)
+            html.find(".gm-only").remove();
+        if (game.user.isGM)
+            html.find(".player-only").remove();
+
+        let dc = message.getFlag(MODULE_NAME, 'dc');
+        let mode = message.getFlag(MODULE_NAME, 'mode');
+
+        $('.roll-all', html).click($.proxy(SavingThrow.onRollAll, SavingThrow, 'all', message));
+        $('.roll-npc', html).click($.proxy(SavingThrow.onRollAll, SavingThrow, 'npc', message));
+
+        let actors = <any[]>message.getFlag(MODULE_NAME, 'actors');
+
+        let items = $('.item', html);
+        let count = 0;
+        let groupdc = 0;
+        for (let i = 0; i < items.length; i++) {
+            var item = items[i];
+            let actorId = $(item).attr('data-item-id');
+            let actorData = actors.find(a => { return a.id == actorId; });
+            let actor = game.actors.get(actorId);
+
+            $(item).toggle(game.user.isGM || mode == 'roll' || mode == 'gmroll' || (mode == 'blindroll' && actor.owner));
+
+            if (game.user.isGM || actor.owner)
+                $('.item-image', item).on('click', $.proxy(SavingThrow._onClickToken, this, actorData.tokenid))
+            $('.item-roll', item).toggle(actorData.roll == undefined && (game.user.isGM || (actor.owner && mode != 'selfroll'))).click($.proxy(SavingThrow.onRollAbility, this, actorId, message, false));
+            $('.dice-total', item).toggle(actorData.roll != undefined && (game.user.isGM || mode == 'roll' || (actor.owner && mode != 'selfroll')));
+            if (actorData.roll != undefined) {
+                let roll = Roll.fromData(actorData.roll);
+                let showroll = game.user.isGM || mode == 'roll' || (mode == 'gmroll' && actor.owner);
+                $('.dice-result', item).toggle(showroll || (mode == 'blindroll' && actor.owner));
+                if (actorData.rolling || (mode == 'blindroll' && !game.user.isGM))
+                    $('.dice-result', item).html(actorData.rolling ? '...' : '-');
+                if (actorData.rolling && game.user.isGM)
+                    $('.dice-result', item).on('click', $.proxy(SavingThrow.finishRolling, SavingThrow, actorId, message));
+                //if (showroll && !actorData.rolling && $('.dice-tooltip', item).is(':empty')) {
+                //    let tooltip = await roll.getTooltip();
+                //    $('.dice-tooltip', item).empty().append(tooltip);
+                //}
+                $('.result-passed', item).toggleClass('recommended', dc != '' && roll.total >= dc).toggleClass('selected', actorData.passed === true).click($.proxy(SavingThrow.setRollSuccess, this, actorId, message, true));
+                $('.result-failed', item).toggleClass('recommended', dc != '' && roll.total < dc).toggleClass('selected', actorData.passed === false).click($.proxy(SavingThrow.setRollSuccess, this, actorId, message, false));
+
+                $('.dice-text', item).toggle(showroll && actorData.passed != undefined).toggleClass('passed', actorData.passed === true).toggleClass('failed', actorData.passed === false).html(actorData.passed === true ? 'Passed' : actorData.passed === false ? 'Failed' : '');
+
+                count++;
+                groupdc += roll.total;
+            }
+
+            //if there hasn't been a roll, then show the button if this is the GM or if this token is controlled by the current user
+
+            //if this is the GM, and there's a roll, show the pass/fail buttons
+            //highlight a button if the token hasn't had a result selected
+            //toggle the button, if a result has been selected
+
+            //if this is not the GM, and the results should be shown, and a result has been selected, then show the result
+        };
+
+        //calculate the group DC
+        if (count > 0){
+            $('.group-dc', html).html(String(parseInt(String(groupdc / count))));
+        }
+        //let modename = (mode == 'roll' ? 'Public Roll' : (mode == 'gmroll' ? 'Private GM Roll' : (mode == 'blindroll' ? 'Blind GM Roll' : 'Self Roll')));
+        //$('.message-mode', html).html(modename);
+
+        //let content = duplicate(message.data.content);
+        //content = content.replace('<span class="message-mode"></span>', '<span class="message-mode">' + modename + '</span>');
+        //await message.update({ "content": content });
+    }
   });
 
   // Register custom sheets (if any)

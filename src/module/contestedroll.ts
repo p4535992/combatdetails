@@ -74,7 +74,7 @@ export class ContestedRollApp extends Application {
                 modename: modename,
                 actors: [addActor.call(this, this.token, 'token'), addActor.call(this, this.countertoken, 'countertoken')]
             };
-            const html = await renderTemplate("./modules/combatdetails/templates/contestedrollchatmsg.html", requestdata);
+            const html = await renderTemplate(`/modules/${MODULE_NAME}/templates/contestedrollchatmsg.html`, requestdata);
 
             log('create chat request');
             let chatData = {
@@ -106,7 +106,7 @@ export class ContestedRollApp extends Application {
                 }
             }
             //chatData.flags["combatdetails"] = {"testmsg":"testing"};
-            setProperty(chatData, "flags.combatdetails", requestdata);
+            setProperty(chatData, "flags."+MODULE_NAME, requestdata);
             ChatMessage.create(chatData, {});
             this.close();
         } else
@@ -288,79 +288,3 @@ export class ContestedRoll {
         return getCanvas().animatePan({ x: token.x, y: token.y });
     }
 }
-
-// Hooks.on('controlToken', (token, delta) => {
-//     if (game.user.isGM && delta === true && CombatDetails.tokenbar.contestedroll != undefined && CombatDetails.tokenbar.contestedroll._state != -1) {
-//         if (CombatDetails.tokenbar.contestedroll.token == undefined)
-//             CombatDetails.tokenbar.contestedroll.token = token;
-//         else if (CombatDetails.tokenbar.contestedroll.countertoken == undefined)
-//             CombatDetails.tokenbar.contestedroll.countertoken = token;
-//         CombatDetails.tokenbar.contestedroll.render(true);
-//     }
-// });
-
-// Hooks.on("renderChatMessage", (message, html, data) => {
-//     const svgCard = html.find(".combatdetail-message.contested-roll");
-//     if (svgCard.length !== 0) {
-
-//         if (!game.user.isGM)
-//             html.find(".gm-only").remove();
-//         if (game.user.isGM)
-//             html.find(".player-only").remove();
-
-//         let dc = message.getFlag(MODULE_NAME, 'dc');
-//         let mode = message.getFlag(MODULE_NAME, 'mode');
-
-//         $('.roll-all', html).click($.proxy(ContestedRoll.onRollAll, ContestedRoll, message));
-
-//         let actors = message.getFlag(MODULE_NAME, 'actors');
-//         let actorRolling = (actors[0].rolling || actors[1].rolling);
-
-//         let items = $('.item', html);
-//         for (let i = 0; i < items.length; i++) {
-//             var item = items[i];
-//             let actorId = $(item).attr('data-item-id');
-//             let actorData = actors.find(a => { return a.id == actorId; });
-//             let actor = game.actors.get(actorId);
-
-//             $(item).toggle(game.user.isGM || mode == 'roll' || mode == 'gmroll' || (mode == 'blindroll' && actor.owner));
-
-//             if (game.user.isGM || actor.owner)
-//                 $('.item-image', item).on('click', $.proxy(ContestedRoll._onClickToken, this, actorData.tokenid))
-//             $('.item-roll', item).toggle(actorData.roll == undefined && (game.user.isGM || (actor.owner && mode != 'selfroll'))).click($.proxy(ContestedRoll.onRollAbility, this, actorId, message, false));
-//             $('.dice-total', item).toggle(actorData.roll != undefined && (game.user.isGM || mode == 'roll' || (actor.owner && mode != 'selfroll')));
-
-
-//             if (actorData.roll != undefined) {
-//                 let roll = Roll.fromData(actorData.roll);
-//                 let showroll = game.user.isGM || mode == 'roll' || (mode == 'gmroll' && actor.owner);
-//                 $('.dice-result', item).toggle(showroll || (mode == 'blindroll' && actor.owner));
-//                 if (actorData.rolling || (mode == 'blindroll' && !game.user.isGM))
-//                     $('.dice-result', item).html(actorData.rolling ? '...' : '-');
-//                 if (actorData.rolling && game.user.isGM)
-//                     $('.dice-result', item).on('click', $.proxy(ContestedRoll.finishRolling, ContestedRoll, actorId, message));
-//                 //if (showroll && !actorData.rolling && $('.dice-tooltip', item).is(':empty')) {
-//                 //    let tooltip = await roll.getTooltip();
-//                 //    $('.dice-tooltip', item).empty().append(tooltip);
-//                 //}
-//                 if(game.user.isGM)
-//                     $('.roll-result', item).click($.proxy(ContestedRoll.setRollSuccess, this, actorId, message, true));
-
-//                 $('.roll-result', item).toggleClass('result-passed selected', actorData.passed == 'won' && !actorRolling)
-//                 $('.roll-result i', item)
-//                     .toggleClass('fa-check', actorData.passed == 'won' && !actorRolling && (game.user.isGM || mode != 'blindroll'))
-//                     //.toggleClass('fa-check', actorData.passed == 'failed')
-//                     .toggleClass('fa-minus', actorData.passed == 'tied' && !actorRolling && (game.user.isGM || mode != 'blindroll'))
-//                     .toggleClass('fa-ellipsis-h', (actorData.passed == 'waiting' || actorRolling) && actorData.roll != undefined && (game.user.isGM || mode != 'blindroll'));
-//             }
-
-//             //if there hasn't been a roll, then show the button if this is the GM or if this token is controlled by the current user
-
-//             //if this is the GM, and there's a roll, show the pass/fail buttons
-//             //highlight a button if the token hasn't had a result selected
-//             //toggle the button, if a result has been selected
-
-//             //if this is not the GM, and the results should be shown, and a result has been selected, then show the result
-//         };
-//     }
-// });
