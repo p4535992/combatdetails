@@ -1,10 +1,17 @@
-import { CombatDetails } from "../combatdetails.js";
-import { SavingThrowApp } from "../apps/savingthrow.js";
-import { ContestedRollApp } from "../apps/contestedroll.js";
-import { AssignXPApp } from "../apps/assignxp.js";
-import { log } from "../combatdetails.js";
+import { CombatDetails } from "./combatdetailsimpl";
+import { SavingThrowApp } from "./savingthrow";
+import { ContestedRollApp } from "./contestedroll";
+import { AssignXPApp } from "./assignxp";
+import { log } from "../combatdetails";
+import { getCanvas, MODULE_NAME } from "./settings";
 
 export class TokenBar extends Application {
+
+  tokens:any[];
+  _collapsed = false;
+  _hover = null;
+  contestedroll;
+
 	constructor(options) {
 	    super(options);
 
@@ -29,6 +36,7 @@ export class TokenBar extends Application {
 
     /** @override */
 	static get defaultOptions() {
+    //@ts-ignore
     return mergeObject(super.defaultOptions, {
         id: "tokenbar",
         template: "./modules/combatdetails/templates/tokenbar.html",
@@ -43,7 +51,7 @@ export class TokenBar extends Application {
         return {
             tokens: this.tokens,
             barClass: this._collapsed ? "collapsed" : "",
-            movement: game.settings.get("combatdetails", "movement")
+            movement: game.settings.get(MODULE_NAME, "movement")
         };
     }
 
@@ -54,6 +62,7 @@ export class TokenBar extends Application {
     setPos() {
         let pos = $('#hotbar').position();
         let width = $('#hotbar').width();
+        //@ts-ignore
         this.setPosition(pos.left + width + 4);
         $(this.element).css({ left: pos.left + width + 4 });
 
@@ -69,13 +78,13 @@ export class TokenBar extends Application {
     * @private
     */
     _getTokensByScene() {
-        let tokens = canvas.tokens.placeables.filter(t => {
+        let tokens = getCanvas().tokens.placeables.filter(t => {
             return t.actor?.hasPlayerOwner && t.actor?.data.type != 'npc'
         }).map(t => {
             let actor = t.actor;
 
             let ac = 10
-            if (game.world.system === "pf1") {
+            if (game.world.system.id === "pf1") {
                 ac = actor.data.data.attributes.ac.normal.total
             } else {
                 ac = (isNaN(parseInt(actor.data.data.attributes.ac.value)) || parseInt(actor.data.data.attributes.ac.value) === 0) ? 10 : parseInt(actor.data.data.attributes.ac.value);
@@ -83,10 +92,10 @@ export class TokenBar extends Application {
 
             //let perceptionTitle = "Passive Perception";
             let perception = 10;
-            if (game.world.system === "pf1") {
+            if (game.world.system.id === "pf1") {
                 perception = actor.data.data.skills.per.mod
                 //perceptionTitle = "Perception Mod";
-            } else if (game.world.system === "pf2e") {
+            } else if (game.world.system.id === "pf2e") {
                 if (actor.data.type === "npc" || actor.data.type === "familiar") {
                     perception = perception + actor.data.data.attributes.perception.value;
                 } else {
@@ -98,7 +107,7 @@ export class TokenBar extends Application {
                 perception = actor.data.data.skills.prc.passive;
             }
 
-            t.unsetFlag("combatdetails", "notified");
+            t.unsetFlag(MODULE_NAME, "notified");
 
             return {
                 id: t.id,
@@ -239,7 +248,7 @@ export class TokenBar extends Application {
     async _onRequestRoll(event) {
         event.preventDefault();
 
-        new SavingThrowApp().render(true);
+        new SavingThrowApp(undefined).render(true);
 
         log('open request roll');
     }
@@ -247,7 +256,7 @@ export class TokenBar extends Application {
     async _onContestedRoll(event) {
         event.preventDefault();
 
-        this.contestedroll = new ContestedRollApp().render(true);
+        this.contestedroll = new ContestedRollApp(undefined).render(true);
 
         log('open contest roll');
     }
@@ -255,7 +264,7 @@ export class TokenBar extends Application {
     async _onAssignXP(event) {
         event.preventDefault();
 
-        new AssignXPApp().render(true);
+        new AssignXPApp(undefined,undefined).render(true);
 
         log('open xp dialog');
     }
@@ -271,30 +280,30 @@ export class TokenBar extends Application {
         if (movement == 'combat' && (game.combat == undefined || !game.combat.started))
             return;
 
-        await game.settings.set("combatdetails", "movement", movement);
+        await game.settings.set(MODULE_NAME, "movement", movement);
         //clear all the tokens individual movement settings
         $(this.tokens).each(function () {
-            this.token.setFlag("combatdetails", "movement", null);
-            this.token.unsetFlag("combatdetails", "notified");
+            this.token.setFlag(MODULE_NAME, "movement", null);
+            this.token.unsetFlag(MODULE_NAME, "notified");
         });
         this.render(true);
 
-        this.displayNotification(movement);
+        this.displayNotification(movement,undefined);
 
-        log('change movement', this.movement);
+        log('change movement', movement);
     }
 
     async changeTokenMovement(entry, movement) {
-        let tMovement = (game.settings.get("combatdetails", "movement") != movement ? movement : null)
-        await entry.token.setFlag("combatdetails", "movement", tMovement);
-        entry.token.unsetFlag("combatdetails", "notified");
+        let tMovement = (game.settings.get(MODULE_NAME, "movement") != movement ? movement : null)
+        await entry.token.setFlag(MODULE_NAME, "movement", tMovement);
+        entry.token.unsetFlag(MODULE_NAME, "notified");
         this.render(true);
 
         this.displayNotification(tMovement, entry.token);
     }
 
     displayNotification(movement, token) {
-        if (game.settings.get("combatdetails", "notify-on-change")) {
+        if (game.settings.get(MODULE_NAME, "notify-on-change")) {
             let msg = (token != undefined ? token.name + ": " : "") + "Movement changed to " + (movement == "free" ? "Free Movement" : (movement == "none" ? "No Movement" : "Combat Turn"));
             ui.notifications.warn(msg);
             log('display notification');
@@ -325,7 +334,7 @@ export class TokenBar extends Application {
 
         log('Center on token', entry, entry.token);
         entry.token.control({ releaseOthers: true });
-        return canvas.animatePan({ x: entry.token.x, y: entry.token.y });
+        return getCanvas().animatePan({ x: entry.token.x, y: entry.token.y });
     }
 
     async _onDblClickToken(event) {
@@ -385,48 +394,48 @@ export class TokenBar extends Application {
     }
 }
 
-Hooks.on('renderTokenBar', (app, html) => {
-    CombatDetails.tokenbar.setPos().show();
-    //CombatDetails.tokenbar._getTokensByScene();
-    let gMovement = game.settings.get("combatdetails", "movement");
-    $('.token-movement[data-movement="' + gMovement + '"]', html).addClass('active');
-    $('.token-movement[data-movement="combat"]', html).toggleClass('disabled', game.combats.active?.started !== true);
-    $(app.tokens).each(function () {
-        let tMovement = this.token.getFlag("combatdetails", "movement");
-        if (tMovement != undefined && tMovement != gMovement) {
-            $('.token[data-token-id="' + this.id + '"] .movement-icon', html).attr('movement', tMovement);
-        }
-    });
-});
+// Hooks.on('renderTokenBar', (app, html) => {
+//     CombatDetails.tokenbar.setPos().show();
+//     //CombatDetails.tokenbar._getTokensByScene();
+//     let gMovement = game.settings.get(MODULE_NAME, "movement");
+//     $('.token-movement[data-movement="' + gMovement + '"]', html).addClass('active');
+//     $('.token-movement[data-movement="combat"]', html).toggleClass('disabled', game.combats.active?.started !== true);
+//     $(app.tokens).each(function () {
+//         let tMovement = this.token.getFlag(MODULE_NAME, "movement");
+//         if (tMovement != undefined && tMovement != gMovement) {
+//             $('.token[data-token-id="' + this.id + '"] .movement-icon', html).attr('movement', tMovement);
+//         }
+//     });
+// });
 
-Hooks.on("ready", () => {
-    if (game.user.isGM && game.settings.get("combatdetails", "show-token-bar")) {
-        CombatDetails.tokenbar = new TokenBar();
-        CombatDetails.tokenbar._getTokensByScene();
-        CombatDetails.tokenbar.render(true);
-    }
-});
+// Hooks.on("ready", () => {
+//     if (game.user.isGM && game.settings.get(MODULE_NAME, "show-token-bar")) {
+//         CombatDetails.tokenbar = new TokenBar(undefined);
+//         CombatDetails.tokenbar._getTokensByScene();
+//         CombatDetails.tokenbar.render(true);
+//     }
+// });
 
 
-Hooks.on('canvasReady', () => {
-    //CombatDetails.tokenbar._getTokensByScene();
-    //$('.token-action-bar .token-list', CombatDetails.tokenbar.element).empty();
-    if (game.user.isGM && CombatDetails.tokenbar != undefined) {
-        CombatDetails.tokenbar._getTokensByScene();
-        CombatDetails.tokenbar.render(true);
-    }
-});
+// Hooks.on('canvasReady', () => {
+//     //CombatDetails.tokenbar._getTokensByScene();
+//     //$('.token-action-bar .token-list', CombatDetails.tokenbar.element).empty();
+//     if (game.user.isGM && CombatDetails.tokenbar != undefined) {
+//         CombatDetails.tokenbar._getTokensByScene();
+//         CombatDetails.tokenbar.render(true);
+//     }
+// });
 
-Hooks.on("createToken", (token) => {
-    if (game.user.isGM && CombatDetails.tokenbar != undefined) {
-        CombatDetails.tokenbar._getTokensByScene();
-        CombatDetails.tokenbar.render(true);
-    }
-});
+// Hooks.on("createToken", (token) => {
+//     if (game.user.isGM && CombatDetails.tokenbar != undefined) {
+//         CombatDetails.tokenbar._getTokensByScene();
+//         CombatDetails.tokenbar.render(true);
+//     }
+// });
 
-Hooks.on("deleteToken", (token) => {
-    if (game.user.isGM && CombatDetails.tokenbar != undefined) {
-        CombatDetails.tokenbar._getTokensByScene();
-        CombatDetails.tokenbar.render(true);
-    }
-});
+// Hooks.on("deleteToken", (token) => {
+//     if (game.user.isGM && CombatDetails.tokenbar != undefined) {
+//         CombatDetails.tokenbar._getTokensByScene();
+//         CombatDetails.tokenbar.render(true);
+//     }
+// });

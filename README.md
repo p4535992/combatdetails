@@ -41,22 +41,6 @@ The combat timer is simply a bar along the bottom of the screen. By default it i
 
 This module was made by Ken L. This repo is only used to handle upkeep for future FVTT versions. 
 
-## Installation Instructions
-
-Copy https://raw.githubusercontent.com/smilligan93/combatready/master/module.json into the module installer
-inside foundry when it asks for the manifest.
-
-OR
-
-Simply create a folder named 'combatready' in public/modules and git clone this repository
-there. Makes it easy to pull updates in the future.
-
-OR
-
-Download the zip, create a folder in Data/modules called 'combatready' and extract
-the contents of "combatready-master.zip" there.
-
-
 ## [Changelog](./changelog.md)
 
 ## Issues

@@ -185,28 +185,28 @@ export class AssignXP {
     }
 }
 
-Hooks.on("renderChatMessage", (message, html, data) => {
-    const assignCard = html.find(".combatdetail-message.assignxp");
-    if (assignCard.length !== 0) {
-        if (!game.user.isGM)
-            html.find(".gm-only").remove();
-        if (game.user.isGM)
-            html.find(".player-only").remove();
+// Hooks.on("renderChatMessage", (message, html, data) => {
+//     const assignCard = html.find(".combatdetail-message.assignxp");
+//     if (assignCard.length !== 0) {
+//         if (!game.user.isGM)
+//             html.find(".gm-only").remove();
+//         if (game.user.isGM)
+//             html.find(".player-only").remove();
 
-        $('.assign-all', html).click($.proxy(AssignXP.onAssignAllXP, AssignXP, message));
+//         $('.assign-all', html).click($.proxy(AssignXP.onAssignAllXP, AssignXP, message));
 
-        let actors = <any[]>message.getFlag(MODULE_NAME, 'actors');
+//         let actors = <any[]>message.getFlag(MODULE_NAME, 'actors');
 
-        let items = $('.item', html);
-        for (let i = 0; i < items.length; i++) {
-            var item = items[i];
-            let actorId = $(item).attr('data-item-id');
-            let actorData = actors.find(a => { return a.id == actorId; });
-            let actor = game.actors.get(actorId);
+//         let items = $('.item', html);
+//         for (let i = 0; i < items.length; i++) {
+//             var item = items[i];
+//             let actorId = $(item).attr('data-item-id');
+//             let actorData = actors.find(a => { return a.id == actorId; });
+//             let actor = game.actors.get(actorId);
 
-            let assign = !actorData.assigned && (game.user.isGM || actor.owner);
-            $('.dice-total', item).toggleClass('assigned', !assign);
-            $('.add-xp', item).toggle(assign).click($.proxy(AssignXP.onAssignXP, this, actorId, message));
-        }
-    }
-});
+//             let assign = !actorData.assigned && (game.user.isGM || actor.owner);
+//             $('.dice-total', item).toggleClass('assigned', !assign);
+//             $('.add-xp', item).toggle(assign).click($.proxy(AssignXP.onAssignXP, this, actorId, message));
+//         }
+//     }
+// });

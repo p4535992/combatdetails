@@ -1,13 +1,18 @@
-import { CombatDetails } from "../combatdetails.js";
-import { log } from "../combatdetails.js";
+import { log } from "../combatdetails";
+import { CombatDetails } from "./combatdetailsimpl";
+import { getCanvas, MODULE_NAME } from "./settings";
 
 export class SavingThrowApp extends Application {
+
+    tokens:any[];
+
     constructor(options) {
         super(options);
-        this.tokens = canvas.tokens.controlled.filter(t => t.actor != undefined);
+        this.tokens = getCanvas().tokens.controlled.filter(t => t.actor != undefined);
     }
 
     static get defaultOptions() {
+        //@ts-ignore
         return mergeObject(super.defaultOptions, {
             id: "requestsavingthrow",
             title: "Request Roll",
@@ -28,7 +33,7 @@ export class SavingThrowApp extends Application {
     }
 
     addToken() {
-        canvas.tokens.controlled.forEach(token => {
+        getCanvas().tokens.controlled.forEach(token => {
             if (this.tokens.find(t => t.id === token.id) == undefined) {
                 if (token.actor == undefined)
                     ui.notifications.warn('token has no actor to use for additional attributes');
@@ -74,7 +79,8 @@ export class SavingThrowApp extends Application {
             log('create chat request');
             let chatData = {
                 user: game.user._id,
-                content: html
+                content: html,
+                whisper: []
             };
             if (requestdata.mode == 'selfroll')
                 chatData.whisper = [game.user._id];
@@ -119,19 +125,22 @@ export class SavingThrow {
         let actor = game.actors.get(actorid);
 
         if (actor != undefined) {
-            let requestroll = message.getFlag('combatdetails', 'roll');
-            let rolltype = message.getFlag('combatdetails', 'rolltype');
+            let requestroll = message.getFlag(MODULE_NAME, 'roll');
+            let rolltype = message.getFlag(MODULE_NAME, 'rolltype');
 
             let roll = null;
-            if (rolltype == 'ability')
-                roll = await actor.rollAbilityTest(requestroll, { fastForward: fastForward, chatMessage: false });
-            else if (rolltype == 'saving')
-                roll = await actor.rollAbilitySave(requestroll, { fastForward: fastForward, chatMessage: false });
-            else if (rolltype == 'skill')
-                roll = await actor.rollSkill(requestroll, { fastForward: fastForward, chatMessage: false });
-
+            if (rolltype == 'ability'){
+              //@ts-ignore
+              roll = await actor.rollAbilityTest(requestroll, { fastForward: fastForward, chatMessage: false });
+            }else if (rolltype == 'saving'){
+              //@ts-ignore
+              roll = await actor.rollAbilitySave(requestroll, { fastForward: fastForward, chatMessage: false });
+            }else if (rolltype == 'skill'){
+              //@ts-ignore
+              roll = await actor.rollSkill(requestroll, { fastForward: fastForward, chatMessage: false });
+            }
             if (roll != undefined) {
-                let mode = message.getFlag('combatdetails', 'mode');
+                let mode = message.getFlag(MODULE_NAME, 'mode');
 
                 if (!game.user.isGM) {
                     game.socket.emit(
@@ -153,15 +162,19 @@ export class SavingThrow {
 
                 if (game.dice3d != undefined && !fastForward) {
                     let whisper = (mode == 'roll' ? null : ChatMessage.getWhisperRecipients("GM").map(w => { return w.id }));
-                    if (mode == 'gmroll' && !game.user.isGM)
+                    if (mode == 'gmroll' && !game.user.isGM){
                         whisper.push(game.user._id);
+                    }
                     const sound = CombatDetails.getDiceSound();
-                    if (sound != undefined)
-                        AudioHelper.play({ src: sound });
+                    if (sound != undefined){
+                        AudioHelper.play({ src: sound, volume: 0.8, autoplay: false, loop: false }, true);
+                    }
+                    //@ts-ignore
                     game.dice3d.showForRoll(roll, game.user, true, whisper, (mode == 'blindroll' && !game.user.isGM)).then(() => {
                         const revealDice = game.dice3d ? game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages") : false;
-                        if (!revealDice)
-                            SavingThrow.finishRolling(actorid, message);
+                        if (!revealDice){
+                          SavingThrow.finishRolling(actorid, message);
+                        }
                     });
                 }
             }
@@ -184,17 +197,17 @@ export class SavingThrow {
                 }
             );
         } else {
-            let actors = JSON.parse(JSON.stringify(message.getFlag('combatdetails', 'actors')));
+            let actors = JSON.parse(JSON.stringify(message.getFlag(MODULE_NAME, 'actors')));
             let msgactor = actors.find(a => { return a.id == actorid; });
             msgactor.rolling = false;
-            message.setFlag('combatdetails', 'actors', actors);
+            message.setFlag(MODULE_NAME, 'actors', actors);
         }
     }
 
     static async updateSavingRoll(actorid, message, roll, rolling = false) {
-        let dc = message.getFlag('combatdetails', 'dc');
+        let dc = message.getFlag(MODULE_NAME, 'dc');
 
-        let actors = JSON.parse(JSON.stringify(message.getFlag('combatdetails', 'actors')));
+        let actors = JSON.parse(JSON.stringify(message.getFlag(MODULE_NAME, 'actors')));
         let msgactor = actors.find(a => { return a.id == actorid; });
         log('updating actor', msgactor, roll);
 
@@ -223,19 +236,19 @@ export class SavingThrow {
             </div >`);
 
         message.update({ content: content[0].outerHTML });
-        await message.setFlag('combatdetails', 'actors', actors);
+        await message.setFlag(MODULE_NAME, 'actors', actors);
     }
 
     static async onRollAll(mode, message) {
         if (game.user.isGM) {
-            let actors = message.getFlag('combatdetails', 'actors');
+            let actors = message.getFlag(MODULE_NAME, 'actors');
             for (let i = 0; i < actors.length; i++) {
                 let msgactor = actors[i];
                 if (msgactor.roll == undefined) {
                     let actor = game.actors.get(msgactor.id);
                     if (actor != undefined && (mode == 'all' || actor.data.type != 'character')) {
                         //roll the dice, using standard details from actor
-                        await SavingThrow.onRollAbility(msgactor.id, message, true);
+                        await SavingThrow.onRollAbility(msgactor.id, message, true, undefined);
                     }
                 }
             };
@@ -246,7 +259,7 @@ export class SavingThrow {
     }
 
     static async setRollSuccess(actorid, message, success) {
-        let actors = JSON.parse(JSON.stringify(message.getFlag('combatdetails', 'actors')));
+        let actors = JSON.parse(JSON.stringify(message.getFlag(MODULE_NAME, 'actors')));
         let msgactor = actors.find(a => { return a.id == actorid; });
 
         if (msgactor.passed === success)
@@ -254,7 +267,7 @@ export class SavingThrow {
         else
             msgactor.passed = success;
 
-        await message.setFlag('combatdetails', 'actors', actors);
+        await message.setFlag(MODULE_NAME, 'actors', actors);
     }
 
     static async _onClickToken(tokenId, event) {
@@ -263,9 +276,9 @@ export class SavingThrow {
         event.cancelBubble = true;
         event.returnValue = false;
 
-        let token = canvas.tokens.get(tokenId);
+        let token = getCanvas().tokens.get(tokenId);
         token.control({ releaseOthers: true });
-        return canvas.animatePan({ x: token.x, y: token.y });
+        return getCanvas().animatePan({ x: token.x, y: token.y });
     }
 }
 
@@ -278,13 +291,13 @@ Hooks.on("renderChatMessage", (message, html, data) => {
         if (game.user.isGM)
             html.find(".player-only").remove();
 
-        let dc = message.getFlag('combatdetails', 'dc');
-        let mode = message.getFlag('combatdetails', 'mode');
+        let dc = message.getFlag(MODULE_NAME, 'dc');
+        let mode = message.getFlag(MODULE_NAME, 'mode');
 
         $('.roll-all', html).click($.proxy(SavingThrow.onRollAll, SavingThrow, 'all', message));
         $('.roll-npc', html).click($.proxy(SavingThrow.onRollAll, SavingThrow, 'npc', message));
 
-        let actors = message.getFlag('combatdetails', 'actors');
+        let actors = <any[]>message.getFlag(MODULE_NAME, 'actors');
 
         let items = $('.item', html);
         let count = 0;
@@ -332,9 +345,9 @@ Hooks.on("renderChatMessage", (message, html, data) => {
         };
 
         //calculate the group DC
-        if (count > 0)
-            $('.group-dc', html).html(parseInt(groupdc / count));
-
+        if (count > 0){
+            $('.group-dc', html).html(String(parseInt(String(groupdc / count))));
+        }
         //let modename = (mode == 'roll' ? 'Public Roll' : (mode == 'gmroll' ? 'Private GM Roll' : (mode == 'blindroll' ? 'Blind GM Roll' : 'Self Roll')));
         //$('.message-mode', html).html(modename);
 

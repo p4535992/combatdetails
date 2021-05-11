@@ -1,7 +1,6 @@
 ﻿import { getCanvas, MODULE_NAME, registerSettings } from "./settings.js";
 import { TokenBar } from "./tokenbar.js";
-//@ts-ignore
-import { MMCQ } from "./quantize.js";
+import { MMCQ } from "../libs/quantize.js";
 import { AssignXP, AssignXPApp } from "./assignxp.js";
 import { SavingThrow } from "./savingthrow.js";
 import { ContestedRoll } from "./contestedroll.js";

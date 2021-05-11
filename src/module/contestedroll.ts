@@ -1,18 +1,24 @@
-import { CombatDetails } from "../combatdetails.js";
-import { log } from "../combatdetails.js";
+import { log } from "../combatdetails";
+import { CombatDetails } from "./combatdetailsimpl";
+import { getCanvas, MODULE_NAME } from "./settings";
 
 export class ContestedRollApp extends Application {
+
+    token:Token;
+    countertoken:Token;
+
     constructor(options) {
         super(options);
-        this.token = canvas.tokens.controlled[0];
+        this.token = getCanvas().tokens.controlled[0];
         this.countertoken = game.user.targets.values()?.next()?.value;
     }
 
     static get defaultOptions() {
+        //@ts-ignore
         return mergeObject(super.defaultOptions, {
             id: "contestedroll",
             title: "Contested Roll",
-            template: "./modules/combatdetails/templates/contestedroll.html",
+            template: `/modules/${MODULE_NAME}/templates/contestedroll.html`,
             width: 400,
             height: 250,
             popOut: true
@@ -30,9 +36,9 @@ export class ContestedRollApp extends Application {
     }
 
     addToken(e) {
-        if (canvas.tokens.controlled.length > 0) {
+        if (getCanvas().tokens.controlled.length > 0) {
             let item = $(e.currentTarget).attr('data-type');
-            this[item] = canvas.tokens.controlled[0];
+            this[item] = getCanvas().tokens.controlled[0];
             this.render(true);
         }
     }
@@ -73,7 +79,8 @@ export class ContestedRollApp extends Application {
             log('create chat request');
             let chatData = {
                 user: game.user._id,
-                content: html
+                content: html,
+                whisper: []
             };
             if (requestdata.mode == 'selfroll')
                 chatData.whisper = [game.user._id];
@@ -118,25 +125,28 @@ export class ContestedRollApp extends Application {
 
 export class ContestedRoll {
     static async onRollAbility(actorid, message, fastForward = false, e) {
-        let actor = game.actors.get(actorid);
+        let actor:Actor = game.actors.get(actorid);
 
         if (actor != undefined) {
-            let actors = message.getFlag('combatdetails', 'actors');
+            let actors = message.getFlag(MODULE_NAME, 'actors');
             let msgactor = actors.find(a => { return a.id == actorid; });
             if (msgactor != undefined && msgactor.roll == undefined) {
                 let attribute = msgactor.attr;
                 let attrtype = msgactor.attrtype;
 
                 let roll = null;
-                if (attrtype == 'ability')
-                    roll = await actor.rollAbilityTest(attribute, { fastForward: fastForward, chatMessage: false });
-                else if (attrtype == 'saving')
-                    roll = await actor.rollAbilitySave(attribute, { fastForward: fastForward, chatMessage: false });
-                else if (attrtype == 'skill')
-                    roll = await actor.rollSkill(attribute, { fastForward: fastForward, chatMessage: false });
-
+                if (attrtype == 'ability'){
+                  //@ts-ignore
+                  roll = await actor.rollAbilityTest(attribute, { fastForward: fastForward, chatMessage: false });
+                }else if (attrtype == 'saving'){
+                  //@ts-ignore
+                  roll = await actor.rollAbilitySave(attribute, { fastForward: fastForward, chatMessage: false });
+                }else if (attrtype == 'skill'){
+                  //@ts-ignore
+                  roll = await actor.rollSkill(attribute, { fastForward: fastForward, chatMessage: false });
+                }
                 if (roll != undefined) {
-                    let mode = message.getFlag('combatdetails', 'mode');
+                    let mode = message.getFlag(MODULE_NAME, 'mode');
 
                     if (!game.user.isGM) {
                         game.socket.emit(
@@ -160,15 +170,19 @@ export class ContestedRoll {
 
                     if (game.dice3d != undefined && !fastForward) {
                         let whisper = (mode == 'roll' ? null : ChatMessage.getWhisperRecipients("GM").map(w => { return w.id }));
-                        if (mode == 'gmroll' && !game.user.isGM)
+                        if (mode == 'gmroll' && !game.user.isGM){
                             whisper.push(game.user._id);
+                        }
                         const sound = CombatDetails.getDiceSound();
-                        if (sound != undefined)
-                            AudioHelper.play({ src: sound });
+                        if (sound != undefined){
+                            AudioHelper.play({ src: sound, volume: 0.8, autoplay: false, loop: false }, true);
+                        }
+                        //@ts-ignore
                         game.dice3d.showForRoll(roll, game.user, true, whisper, (mode == 'blindroll' && !game.user.isGM)).then(() => {
-                            const revealDice = game.dice3d ? game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages") : false;
-                            if (!revealDice)
-                                ContestedRoll.finishRolling(actorid, message);
+                          const revealDice = game.dice3d ? game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages") : false;
+                          if (!revealDice){
+                              ContestedRoll.finishRolling(actorid, message);
+                          }
                         });
                     }
                 }
@@ -192,16 +206,16 @@ export class ContestedRoll {
                 }
             );
         } else {
-            let actors = duplicate(message.getFlag('combatdetails', 'actors'));
+            let actors = duplicate(message.getFlag(MODULE_NAME, 'actors'));
             let msgactor = actors.find(a => { return a.id == actorid; });
             log('finishing roll', msgactor);
             msgactor.rolling = false;
-            message.setFlag('combatdetails', 'actors', actors);
+            message.setFlag(MODULE_NAME, 'actors', actors);
         }
     }
 
     static async updateContestedRoll(actorid, message, roll, rolling = false) {
-        let actors = duplicate(message.getFlag('combatdetails', 'actors'));
+        let actors = duplicate(message.getFlag(MODULE_NAME, 'actors'));
         let msgactor = actors.find(a => { return a.id == actorid; });
         log('updating contested roll', msgactor, roll);
 
@@ -225,7 +239,7 @@ export class ContestedRoll {
             </div >`);
 
         message.update({ content: content[0].outerHTML });
-        await message.setFlag('combatdetails', 'actors', actors);
+        await message.setFlag(MODULE_NAME, 'actors', actors);
     }
 
     static async checkResult(actors) {
@@ -240,14 +254,14 @@ export class ContestedRoll {
 
     static async onRollAll(message) {
         if (game.user.isGM) {
-            let actors = message.getFlag('combatdetails', 'actors');
+            let actors = message.getFlag(MODULE_NAME, 'actors');
             for (let i = 0; i < actors.length; i++) {
                 let msgactor = actors[i];
                 if (msgactor.roll == undefined) {
                     let actor = game.actors.get(msgactor.id);
                     if (actor != undefined) {
                         //roll the dice, using standard details from actor
-                        await ContestedRoll.onRollAbility(msgactor.id, message, true);
+                        await ContestedRoll.onRollAbility(msgactor.id, message, true, undefined);
                     }
                 }
             };
@@ -255,12 +269,12 @@ export class ContestedRoll {
     }
 
     static async setRollSuccess(actorid, message, success) {
-        let actors = duplicate(message.getFlag('combatdetails', 'actors'));
+        let actors = duplicate(message.getFlag(MODULE_NAME, 'actors'));
         actors[0].passed = actors[1].passed = 'failed';
         let msgactor = actors.find(a => { return a.id == actorid; });
         msgactor.passed = 'won';
 
-        await message.setFlag('combatdetails', 'actors', actors);
+        await message.setFlag(MODULE_NAME, 'actors', actors);
     }
 
     static async _onClickToken(tokenId, event) {
@@ -269,84 +283,84 @@ export class ContestedRoll {
         event.cancelBubble = true;
         event.returnValue = false;
 
-        let token = canvas.tokens.get(tokenId);
+        let token = getCanvas().tokens.get(tokenId);
         token.control({ releaseOthers: true });
-        return canvas.animatePan({ x: token.x, y: token.y });
+        return getCanvas().animatePan({ x: token.x, y: token.y });
     }
 }
 
-Hooks.on('controlToken', (token, delta) => {
-    if (game.user.isGM && delta === true && CombatDetails.tokenbar.contestedroll != undefined && CombatDetails.tokenbar.contestedroll._state != -1) {
-        if (CombatDetails.tokenbar.contestedroll.token == undefined)
-            CombatDetails.tokenbar.contestedroll.token = token;
-        else if (CombatDetails.tokenbar.contestedroll.countertoken == undefined)
-            CombatDetails.tokenbar.contestedroll.countertoken = token;
-        CombatDetails.tokenbar.contestedroll.render(true);
-    }
-});
+// Hooks.on('controlToken', (token, delta) => {
+//     if (game.user.isGM && delta === true && CombatDetails.tokenbar.contestedroll != undefined && CombatDetails.tokenbar.contestedroll._state != -1) {
+//         if (CombatDetails.tokenbar.contestedroll.token == undefined)
+//             CombatDetails.tokenbar.contestedroll.token = token;
+//         else if (CombatDetails.tokenbar.contestedroll.countertoken == undefined)
+//             CombatDetails.tokenbar.contestedroll.countertoken = token;
+//         CombatDetails.tokenbar.contestedroll.render(true);
+//     }
+// });
 
-Hooks.on("renderChatMessage", (message, html, data) => {
-    const svgCard = html.find(".combatdetail-message.contested-roll");
-    if (svgCard.length !== 0) {
+// Hooks.on("renderChatMessage", (message, html, data) => {
+//     const svgCard = html.find(".combatdetail-message.contested-roll");
+//     if (svgCard.length !== 0) {
 
-        if (!game.user.isGM)
-            html.find(".gm-only").remove();
-        if (game.user.isGM)
-            html.find(".player-only").remove();
+//         if (!game.user.isGM)
+//             html.find(".gm-only").remove();
+//         if (game.user.isGM)
+//             html.find(".player-only").remove();
 
-        let dc = message.getFlag('combatdetails', 'dc');
-        let mode = message.getFlag('combatdetails', 'mode');
+//         let dc = message.getFlag(MODULE_NAME, 'dc');
+//         let mode = message.getFlag(MODULE_NAME, 'mode');
 
-        $('.roll-all', html).click($.proxy(ContestedRoll.onRollAll, ContestedRoll, message));
+//         $('.roll-all', html).click($.proxy(ContestedRoll.onRollAll, ContestedRoll, message));
 
-        let actors = message.getFlag('combatdetails', 'actors');
-        let actorRolling = (actors[0].rolling || actors[1].rolling);
+//         let actors = message.getFlag(MODULE_NAME, 'actors');
+//         let actorRolling = (actors[0].rolling || actors[1].rolling);
 
-        let items = $('.item', html);
-        for (let i = 0; i < items.length; i++) {
-            var item = items[i];
-            let actorId = $(item).attr('data-item-id');
-            let actorData = actors.find(a => { return a.id == actorId; });
-            let actor = game.actors.get(actorId);
+//         let items = $('.item', html);
+//         for (let i = 0; i < items.length; i++) {
+//             var item = items[i];
+//             let actorId = $(item).attr('data-item-id');
+//             let actorData = actors.find(a => { return a.id == actorId; });
+//             let actor = game.actors.get(actorId);
 
-            $(item).toggle(game.user.isGM || mode == 'roll' || mode == 'gmroll' || (mode == 'blindroll' && actor.owner));
+//             $(item).toggle(game.user.isGM || mode == 'roll' || mode == 'gmroll' || (mode == 'blindroll' && actor.owner));
 
-            if (game.user.isGM || actor.owner)
-                $('.item-image', item).on('click', $.proxy(ContestedRoll._onClickToken, this, actorData.tokenid))
-            $('.item-roll', item).toggle(actorData.roll == undefined && (game.user.isGM || (actor.owner && mode != 'selfroll'))).click($.proxy(ContestedRoll.onRollAbility, this, actorId, message, false));
-            $('.dice-total', item).toggle(actorData.roll != undefined && (game.user.isGM || mode == 'roll' || (actor.owner && mode != 'selfroll')));
+//             if (game.user.isGM || actor.owner)
+//                 $('.item-image', item).on('click', $.proxy(ContestedRoll._onClickToken, this, actorData.tokenid))
+//             $('.item-roll', item).toggle(actorData.roll == undefined && (game.user.isGM || (actor.owner && mode != 'selfroll'))).click($.proxy(ContestedRoll.onRollAbility, this, actorId, message, false));
+//             $('.dice-total', item).toggle(actorData.roll != undefined && (game.user.isGM || mode == 'roll' || (actor.owner && mode != 'selfroll')));
 
-            
-            if (actorData.roll != undefined) {
-                let roll = Roll.fromData(actorData.roll);
-                let showroll = game.user.isGM || mode == 'roll' || (mode == 'gmroll' && actor.owner);
-                $('.dice-result', item).toggle(showroll || (mode == 'blindroll' && actor.owner));
-                if (actorData.rolling || (mode == 'blindroll' && !game.user.isGM))
-                    $('.dice-result', item).html(actorData.rolling ? '...' : '-');
-                if (actorData.rolling && game.user.isGM)
-                    $('.dice-result', item).on('click', $.proxy(ContestedRoll.finishRolling, ContestedRoll, actorId, message));
-                //if (showroll && !actorData.rolling && $('.dice-tooltip', item).is(':empty')) {
-                //    let tooltip = await roll.getTooltip();
-                //    $('.dice-tooltip', item).empty().append(tooltip);
-                //}
-                if(game.user.isGM)
-                    $('.roll-result', item).click($.proxy(ContestedRoll.setRollSuccess, this, actorId, message, true));
 
-                $('.roll-result', item).toggleClass('result-passed selected', actorData.passed == 'won' && !actorRolling)
-                $('.roll-result i', item)
-                    .toggleClass('fa-check', actorData.passed == 'won' && !actorRolling && (game.user.isGM || mode != 'blindroll'))
-                    //.toggleClass('fa-check', actorData.passed == 'failed')
-                    .toggleClass('fa-minus', actorData.passed == 'tied' && !actorRolling && (game.user.isGM || mode != 'blindroll'))
-                    .toggleClass('fa-ellipsis-h', (actorData.passed == 'waiting' || actorRolling) && actorData.roll != undefined && (game.user.isGM || mode != 'blindroll'));
-            }
+//             if (actorData.roll != undefined) {
+//                 let roll = Roll.fromData(actorData.roll);
+//                 let showroll = game.user.isGM || mode == 'roll' || (mode == 'gmroll' && actor.owner);
+//                 $('.dice-result', item).toggle(showroll || (mode == 'blindroll' && actor.owner));
+//                 if (actorData.rolling || (mode == 'blindroll' && !game.user.isGM))
+//                     $('.dice-result', item).html(actorData.rolling ? '...' : '-');
+//                 if (actorData.rolling && game.user.isGM)
+//                     $('.dice-result', item).on('click', $.proxy(ContestedRoll.finishRolling, ContestedRoll, actorId, message));
+//                 //if (showroll && !actorData.rolling && $('.dice-tooltip', item).is(':empty')) {
+//                 //    let tooltip = await roll.getTooltip();
+//                 //    $('.dice-tooltip', item).empty().append(tooltip);
+//                 //}
+//                 if(game.user.isGM)
+//                     $('.roll-result', item).click($.proxy(ContestedRoll.setRollSuccess, this, actorId, message, true));
 
-            //if there hasn't been a roll, then show the button if this is the GM or if this token is controlled by the current user
+//                 $('.roll-result', item).toggleClass('result-passed selected', actorData.passed == 'won' && !actorRolling)
+//                 $('.roll-result i', item)
+//                     .toggleClass('fa-check', actorData.passed == 'won' && !actorRolling && (game.user.isGM || mode != 'blindroll'))
+//                     //.toggleClass('fa-check', actorData.passed == 'failed')
+//                     .toggleClass('fa-minus', actorData.passed == 'tied' && !actorRolling && (game.user.isGM || mode != 'blindroll'))
+//                     .toggleClass('fa-ellipsis-h', (actorData.passed == 'waiting' || actorRolling) && actorData.roll != undefined && (game.user.isGM || mode != 'blindroll'));
+//             }
 
-            //if this is the GM, and there's a roll, show the pass/fail buttons
-            //highlight a button if the token hasn't had a result selected
-            //toggle the button, if a result has been selected
+//             //if there hasn't been a roll, then show the button if this is the GM or if this token is controlled by the current user
 
-            //if this is not the GM, and the results should be shown, and a result has been selected, then show the result
-        };
-    }
-});
+//             //if this is the GM, and there's a roll, show the pass/fail buttons
+//             //highlight a button if the token hasn't had a result selected
+//             //toggle the button, if a result has been selected
+
+//             //if this is not the GM, and the results should be shown, and a result has been selected, then show the result
+//         };
+//     }
+// });
