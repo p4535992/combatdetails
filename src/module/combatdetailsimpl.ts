@@ -17,13 +17,13 @@ export let i18n = key => {
     return game.i18n.localize(key);
 };
 export let volume = () => {
-  return game.settings.get("combatdetails", "volume") / 100.0;
+  return <number>game.settings.get("combatdetails", "volume") / 100.0;
 };
 export let combatposition = () => {
   return game.settings.get("combatdetails", "combat-position");
 };
 
-CONFIG.controlIcons.visibility = "modules/conditions5e/icons/invisible.svg";
+// CONFIG.controlIcons.visibility = "modules/conditions5e/icons/invisible.svg";
 
 /*
 Hotbar.prototype.__get_defaultOptions = function () {
@@ -100,26 +100,26 @@ export class CombatDetails {
         ];
 
         // sound statics
-        CombatDetails.TURN_SOUND = "modules/combatdetails/sounds/turn.wav";
-        CombatDetails.NEXT_SOUND = "modules/combatdetails/sounds/next.wav";
-        CombatDetails.ROUND_SOUND = "modules/combatdetails/sounds/round.wav";
-        CombatDetails.ACK_SOUND = "modules/combatdetails/sounds/ack.wav";
+        CombatDetails.TURN_SOUND = "modules/combatdetails/assets/sounds/turn.wav";
+        CombatDetails.NEXT_SOUND = "modules/combatdetails/assets/sounds/next.wav";
+        CombatDetails.ROUND_SOUND = "modules/combatdetails/assets/sounds/round.wav";
+        CombatDetails.ACK_SOUND = "modules/combatdetails/assets/sounds/ack.wav";
 
         CONFIG.statusEffects = CONFIG.statusEffects.concat(
             [
-                { "id": "charmed", "label": "COMBATDETAILS.StatusCharmed", "icon": "modules/combatdetails/icons/smitten.png" },
-                { "id": "exhausted", "label": "COMBATDETAILS.StatusExhausted", "icon": "modules/combatdetails/icons/oppression.png" },
-                { "id": "grappled", "label": "COMBATDETAILS.StatusGrappled", "icon": "modules/combatdetails/icons/grab.png" },
-                { "id": "incapacitated", "label": "COMBATDETAILS.StatusIncapacitated", "icon": "modules/combatdetails/icons/internal-injury.png" },
-                { "id": "invisible", "label": "COMBATDETAILS.StatusInvisible", "icon": "modules/combatdetails/icons/invisible.png" },
-                { "id": "petrified", "label": "COMBATDETAILS.StatusPetrified", "icon": "modules/combatdetails/icons/stone-pile.png" },
-                { "id": "hasted", "label": "COMBATDETAILS.StatusHasted", "icon": "modules/combatdetails/icons/running-shoe.png" },
-                { "id": "slowed", "label": "COMBATDETAILS.StatusSlowed", "icon": "modules/combatdetails/icons/turtle.png" },
-                { "id": "concentration", "label": "COMBATDETAILS.StatusConcentrating", "icon": "modules/combatdetails/icons/beams-aura.png" },
-                { "id": "rage", "label": "COMBATDETAILS.StatusRage", "icon": "modules/combatdetails/icons/enrage.png" },
-                { "id": "distracted", "label": "COMBATDETAILS.StatusDistracted", "icon": "modules/combatdetails/icons/distraction.png" },
-                { "id": "dodging", "label": "COMBATDETAILS.StatusDodging", "icon": "modules/combatdetails/icons/dodging.png" },
-                { "id": "disengage", "label": "COMBATDETAILS.StatusDisengage", "icon": "modules/combatdetails/icons/journey.png" }
+                { "id": "charmed", "label": "COMBATDETAILS.StatusCharmed", "icon": "modules/combatdetails/assets/icons/smitten.png" },
+                { "id": "exhausted", "label": "COMBATDETAILS.StatusExhausted", "icon": "modules/combatdetails/assets/icons/oppression.png" },
+                { "id": "grappled", "label": "COMBATDETAILS.StatusGrappled", "icon": "modules/combatdetails/assets/icons/grab.png" },
+                { "id": "incapacitated", "label": "COMBATDETAILS.StatusIncapacitated", "icon": "modules/combatdetails/assets/icons/internal-injury.png" },
+                { "id": "invisible", "label": "COMBATDETAILS.StatusInvisible", "icon": "modules/combatdetails/assets/icons/invisible.png" },
+                { "id": "petrified", "label": "COMBATDETAILS.StatusPetrified", "icon": "modules/combatdetails/assets/icons/stone-pile.png" },
+                { "id": "hasted", "label": "COMBATDETAILS.StatusHasted", "icon": "modules/combatdetails/assets/icons/running-shoe.png" },
+                { "id": "slowed", "label": "COMBATDETAILS.StatusSlowed", "icon": "modules/combatdetails/assets/icons/turtle.png" },
+                { "id": "concentration", "label": "COMBATDETAILS.StatusConcentrating", "icon": "modules/combatdetails/assets/icons/beams-aura.png" },
+                { "id": "rage", "label": "COMBATDETAILS.StatusRage", "icon": "modules/combatdetails/assets/icons/enrage.png" },
+                { "id": "distracted", "label": "COMBATDETAILS.StatusDistracted", "icon": "modules/combatdetails/assets/icons/distraction.png" },
+                { "id": "dodging", "label": "COMBATDETAILS.StatusDodging", "icon": "modules/combatdetails/assets/icons/dodging.png" },
+                { "id": "disengage", "label": "COMBATDETAILS.StatusDisengage", "icon": "modules/combatdetails/assets/icons/journey.png" }
             ]
         );
 
@@ -624,7 +624,7 @@ Hooks.on("addCombatant", function (context, parentId, data) {
   let combat = game.combats.get(parentId);
   let combatant = combat.data.combatants.find((o) => o.id === data.id);
 
-  if (combatant.actor.owner) 
+  if (combatant.actor.owner)
 	  CombatDetails.checkCombatTurn();
 });
 
@@ -659,7 +659,7 @@ Hooks.on("updateCombat", function (data, delta) {
 		//new combat, pop it out
 		const tabApp = ui["combat"];
 		tabApp.renderPopout(tabApp);
-		
+
         if (ui.sidebar.activeTab !== "chat")
             ui.sidebar.activateTab("chat");
 
@@ -688,7 +688,7 @@ Hooks.on("ready", CombatDetails.ready);
 Hooks.on('renderCombatTracker', async (app, html, options) => {
 	if(!CombatDetails.tracker && app.options.id == "combat-popout"){
 		CombatDetails.tracker = true;
-		
+
 		if(combatposition() !== ''){
             CombatDetails.repositionCombat(app);
 		}

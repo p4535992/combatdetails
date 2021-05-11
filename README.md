@@ -1,5 +1,6 @@
 
 ![](https://img.shields.io/badge/Foundry-v0.7.9-informational)
+
 # Combat Details
 
 Add-On Module for Foundry VTT
@@ -8,6 +9,7 @@ This is a small module I created to open a notification that the players turn is
 Based on the Combat Ready! module.  I'm just learning how to write code for Foundry VTT.
 
 ## Known issue/Limitation
+
 ## Installation
 
 It's always easiest to install modules from the in game add-on browser.
@@ -25,6 +27,35 @@ To install this module manually:
 This module uses the [libWrapper](https://github.com/ruipin/fvtt-lib-wrapper) library for wrapping core methods. It is a hard dependency and it is recommended for the best experience and compatibility with other modules.
 
 ## Features
+
+Shows a graphic + sound for players a round just before a player's turn (Next Up) and during their turn.
+
+It uses a light-box style darkening of the canvas to catch their attention as well as an animated graphic + sound. The player then needs to click the banner to either acknowledge their turn is coming up, or take their turn. If they somehow  *still* don't know its their turn then that's a problem between chair and keyboard.
+
+Note that for "Next UP" rather than having the graphic go away entirely, it just puts opacity on the banner as a constant reminder for the player to plan for their turn for when it does come up. Works with hidden combatants too, such that even if there's a block of hidden enemies you're working on as GM, they'll know when their turn is 'next' due to the graphic as to not catch them by surprise.
+
+The combat timer is simply a bar along the bottom of the screen. By default it is  configured for 3m, but this can be changed in the settings. When the bar reaches 3m, or the custom value, an 'expired' sound will play, but it does not  automatically advance the turn. Shame is good enough in my opinion. If you need  to pause the timer, it responds to FVTT's pause mechanic.
+
+
+## Note
+
+This module was made by Ken L. This repo is only used to handle upkeep for future FVTT versions. 
+
+## Installation Instructions
+
+Copy https://raw.githubusercontent.com/smilligan93/combatready/master/module.json into the module installer
+inside foundry when it asks for the manifest.
+
+OR
+
+Simply create a folder named 'combatready' in public/modules and git clone this repository
+there. Makes it easy to pull updates in the future.
+
+OR
+
+Download the zip, create a folder in Data/modules called 'combatready' and extract
+the contents of "combatready-master.zip" there.
+
 
 ## [Changelog](./changelog.md)
 

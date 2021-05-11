@@ -2,8 +2,8 @@
 	"name": "combatdetails",
 	"title": "Combat Details",
 	"description": "Things to make the flow of combat easier",
-	"version": "1.0.5",
-	"author": "Michael Weisner",
+	"version": "1.0.6",
+	"author": "Michael Weisner, Ironmonk88, p4535992",
 	"socket": true,
 	"languages": [
 		{
@@ -12,14 +12,15 @@
 			"path": "lang/en.json"
 		}
 	],
+  "scripts": [
+    "./libs/quantize.js"
+  ],
 	"esmodules": [
-		"combatdetails.js",
-		"./apps/tokenbar.js",
-		"./apps/savingthrow.js",
-		"./apps/assignxp.js",
-		"settings.js"
+		"combatdetails.js"
 	],
-	"styles": [ "css/combatdetails.css", "css/core-changes.css" ],
+	"styles": [
+    "styles/combatdetails.css",
+    "styles/core-changes.css" ],
 	"packs": [],
 	"url" : "https://github.com/ironmonk88/combatdetails",
 	"download" : "https://github.com/ironmonk88/combatdetails/archive/1.0.5.zip",
