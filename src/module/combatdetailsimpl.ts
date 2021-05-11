@@ -1,26 +1,17 @@
-﻿import { registerSettings } from "./settings.js";
-import { TokenBar } from "./apps/tokenbar.js";
+﻿import { getCanvas, MODULE_NAME, registerSettings } from "./settings.js";
+import { TokenBar } from "./tokenbar.js";
+//@ts-ignore
 import { MMCQ } from "./quantize.js";
-import { AssignXP, AssignXPApp } from "./apps/assignxp.js";
-import { SavingThrow } from "./apps/savingthrow.js";
-import { ContestedRoll } from "./apps/contestedroll.js";
+import { AssignXP, AssignXPApp } from "./assignxp.js";
+import { SavingThrow } from "./savingthrow.js";
+import { ContestedRoll } from "./contestedroll.js";
+import { i18n, log } from "../combatdetails.js";
 
-export let debug = (...args) => {
-    if (debugEnabled > 1) console.log("DEBUG: combatdetails | ", ...args);
-};
-export let log = (...args) => console.log("combatdetails | ", ...args);
-export let warn = (...args) => {
-    if (debugEnabled > 0) console.warn("combatdetails | ", ...args);
-};
-export let error = (...args) => console.error("combatdetails | ", ...args);
-export let i18n = key => {
-    return game.i18n.localize(key);
-};
 export let volume = () => {
-  return <number>game.settings.get("combatdetails", "volume") / 100.0;
+  return <number>game.settings.get(MODULE_NAME, "volume") / 100.0;
 };
 export let combatposition = () => {
-  return game.settings.get("combatdetails", "combat-position");
+  return <string>game.settings.get(MODULE_NAME, "combat-position");
 };
 
 // CONFIG.controlIcons.visibility = "modules/conditions5e/icons/invisible.svg";
@@ -49,15 +40,35 @@ Hotbar.prototype.__get_defaultOptions = function () {
  * ============================================================
  */
 export class CombatDetails {
+
+    static SOCKET:string;
+    static READY:boolean;
+    static xpchart:any[];
+
+    static TURN_SOUND:string;
+    static NEXT_SOUND:string;
+    static ROUND_SOUND:string;
+    static ACK_SOUND:string;
+
+    static abilities:string;
+    static skills:string;
+    static saves:string;
+    static element:any;
+
+    static tokenHUD:any;
+    static canvasImage:HTMLImageElement;
+
     static tracker = false;
     static tokenbar = null;
+
+    static currentScene:Scene;
 
     static init() {
 	    log("initializing");
         // element statics
         CONFIG.debug.hooks = true;
 
-        CombatDetails.SOCKET = "module.combatdetails";
+        CombatDetails.SOCKET = "module."+MODULE_NAME;
         //game.socket.on(CombatDetails.SOCKET, CombatDetails.onMessage);
 
         CombatDetails.READY = true;
@@ -100,26 +111,26 @@ export class CombatDetails {
         ];
 
         // sound statics
-        CombatDetails.TURN_SOUND = "modules/combatdetails/assets/sounds/turn.wav";
-        CombatDetails.NEXT_SOUND = "modules/combatdetails/assets/sounds/next.wav";
-        CombatDetails.ROUND_SOUND = "modules/combatdetails/assets/sounds/round.wav";
-        CombatDetails.ACK_SOUND = "modules/combatdetails/assets/sounds/ack.wav";
+        CombatDetails.TURN_SOUND =  `/modules/${MODULE_NAME}/assets/sounds/turn.wav`;
+        CombatDetails.NEXT_SOUND =  `/modules/${MODULE_NAME}/assets/sounds/next.wav`;
+        CombatDetails.ROUND_SOUND =  `/modules/${MODULE_NAME}/assets/sounds/round.wav`;
+        CombatDetails.ACK_SOUND =  `/modules/${MODULE_NAME}/assets/sounds/ack.wav`;
 
         CONFIG.statusEffects = CONFIG.statusEffects.concat(
             [
-                { "id": "charmed", "label": "COMBATDETAILS.StatusCharmed", "icon": "modules/combatdetails/assets/icons/smitten.png" },
-                { "id": "exhausted", "label": "COMBATDETAILS.StatusExhausted", "icon": "modules/combatdetails/assets/icons/oppression.png" },
-                { "id": "grappled", "label": "COMBATDETAILS.StatusGrappled", "icon": "modules/combatdetails/assets/icons/grab.png" },
-                { "id": "incapacitated", "label": "COMBATDETAILS.StatusIncapacitated", "icon": "modules/combatdetails/assets/icons/internal-injury.png" },
-                { "id": "invisible", "label": "COMBATDETAILS.StatusInvisible", "icon": "modules/combatdetails/assets/icons/invisible.png" },
-                { "id": "petrified", "label": "COMBATDETAILS.StatusPetrified", "icon": "modules/combatdetails/assets/icons/stone-pile.png" },
-                { "id": "hasted", "label": "COMBATDETAILS.StatusHasted", "icon": "modules/combatdetails/assets/icons/running-shoe.png" },
-                { "id": "slowed", "label": "COMBATDETAILS.StatusSlowed", "icon": "modules/combatdetails/assets/icons/turtle.png" },
-                { "id": "concentration", "label": "COMBATDETAILS.StatusConcentrating", "icon": "modules/combatdetails/assets/icons/beams-aura.png" },
-                { "id": "rage", "label": "COMBATDETAILS.StatusRage", "icon": "modules/combatdetails/assets/icons/enrage.png" },
-                { "id": "distracted", "label": "COMBATDETAILS.StatusDistracted", "icon": "modules/combatdetails/assets/icons/distraction.png" },
-                { "id": "dodging", "label": "COMBATDETAILS.StatusDodging", "icon": "modules/combatdetails/assets/icons/dodging.png" },
-                { "id": "disengage", "label": "COMBATDETAILS.StatusDisengage", "icon": "modules/combatdetails/assets/icons/journey.png" }
+                { "id": "charmed", "label": MODULE_NAME+".StatusCharmed", "icon": `/modules/${MODULE_NAME}/assets/icons/smitten.png` },
+                { "id": "exhausted", "label": MODULE_NAME+".StatusExhausted", "icon": `/modules/${MODULE_NAME}/assets/icons/oppression.png` },
+                { "id": "grappled", "label": MODULE_NAME+".StatusGrappled", "icon": `/modules/${MODULE_NAME}/assets/icons/grab.png` },
+                { "id": "incapacitated", "label": MODULE_NAME+".StatusIncapacitated", "icon": `/modules/${MODULE_NAME}/assets/icons/internal-injury.png` },
+                { "id": "invisible", "label": MODULE_NAME+".StatusInvisible", "icon": `/modules/${MODULE_NAME}/assets/icons/invisible.png` },
+                { "id": "petrified", "label": MODULE_NAME+".StatusPetrified", "icon": `/modules/${MODULE_NAME}/assets/icons/stone-pile.png` },
+                { "id": "hasted", "label": MODULE_NAME+".StatusHasted", "icon": `/modules/${MODULE_NAME}/assets/icons/running-shoe.png` },
+                { "id": "slowed", "label": MODULE_NAME+".StatusSlowed", "icon": `/modules/${MODULE_NAME}/assets/icons/turtle.png` },
+                { "id": "concentration", "label": MODULE_NAME+".StatusConcentrating", "icon": `/modules/${MODULE_NAME}/assets/icons/beams-aura.png` },
+                { "id": "rage", "label": MODULE_NAME+".StatusRage", "icon": `/modules/${MODULE_NAME}/assets/icons/enrage.png` },
+                { "id": "distracted", "label": MODULE_NAME+".StatusDistracted", "icon": `/modules/${MODULE_NAME}/assets/icons/distraction.png` },
+                { "id": "dodging", "label": MODULE_NAME+".StatusDodging", "icon": `/modules/${MODULE_NAME}/assets/icons/dodging.png` },
+                { "id": "disengage", "label": MODULE_NAME+".StatusDisengage", "icon": `/modules/${MODULE_NAME}/assets/icons/journey.png` }
             ]
         );
 
@@ -127,9 +138,9 @@ export class CombatDetails {
             return (a.id == undefined || a.id > b.id ? 1 : (a.id < b.id ? -1 : 0));
         })
 
-        registerSettings();
+        // registerSettings();
 
-        if (game.settings.get("combatdetails", "alter-hud")){
+        if (game.settings.get(MODULE_NAME, "alter-hud")){
             let oldTokenHUDRender = TokenHUD.prototype._render;
             TokenHUD.prototype._render = function (force = false, options = {}) {
                 let result = oldTokenHUDRender.call(this, force, options).then((a, b) => {
@@ -141,100 +152,113 @@ export class CombatDetails {
             }
         }
 
-        let oldTokenCanDrag = Token.prototype._canDrag;
-        Token.prototype._canDrag = function (user, event) {
-            let blockCombat = function (tokenId) {
-                //combat movement is only acceptable if the token is the current token.
-                //or the previous token
-                //let allowPrevMove = game.settings.get("combatdetails", "allow-previous-move");
-                let curCombat = game.combats.active;
+        //let oldTokenCanDrag = Token.prototype._canDrag;
 
-                if (curCombat && curCombat.started) {
-                    let entry = curCombat.combatant;
-                    // prev combatant
-                    /*
-                    let prevturn = (curCombat.turn || 0) - 1;
-                    if (prevturn == -1) prevturn = (curCombat.turns.length - 1);
-                    let preventry = curCombat.turns[prevturn];
-
-                    //find the next one that hasn't been defeated
-                    while (preventry.defeated && preventry != curCombat.turn) {
-                        prevturn--;
-                        if (prevturn == -1) prevturn = (curCombat.turns.length - 1);
-                        preventry = curCombat.turns[prevturn];
-                    }*/
-
-                    return !(entry.tokenId == tokenId); // || preventry.tokenId == tokenId);
-                }
-
-                return true;
-            }
-
-            let movement = this.getFlag("combatdetails", "movement") || game.settings.get("combatdetails", "movement") || "free";
-
-            if (!game.user.isGM) {
-                if (movement == "none" ||
-                    (movement == "combat" && blockCombat(this.id))) {
-                    //prevent the token from moving
-                    if (!this.getFlag("combatdetails", "notified") || false) {
-                        ui.notifications.warn(movement == "combat" ? "Movement is set to combat turn, it's currently not your turn" : "Movement is currently locked");
-                        this.setFlag("combatdetails", "notified", true);
-                        setTimeout(function (token) {
-                            log('unsetting notified', token);
-                            token.unsetFlag("combatdetails", "notified");
-                        }, 30000, this);
-                    }
-                    return false;
-                }
-            }
-
-            return oldTokenCanDrag.call(this, user, event);
-        }
     }
+
+    static combatDetailsTokenPrototypeCanDragHandler= async function (wrapped, ...args) {
+    // Token.prototype._canDrag = function (user, event) {
+          let blockCombat = function (tokenId) {
+              //combat movement is only acceptable if the token is the current token.
+              //or the previous token
+              //let allowPrevMove = game.settings.get(MODULE_NAME, "allow-previous-move");
+              let curCombat = game.combats.active;
+
+              if (curCombat && curCombat.started) {
+                  let entry = curCombat.combatant;
+                  // prev combatant
+                  /*
+                  let prevturn = (curCombat.turn || 0) - 1;
+                  if (prevturn == -1) prevturn = (curCombat.turns.length - 1);
+                  let preventry = curCombat.turns[prevturn];
+
+                  //find the next one that hasn't been defeated
+                  while (preventry.defeated && preventry != curCombat.turn) {
+                      prevturn--;
+                      if (prevturn == -1) prevturn = (curCombat.turns.length - 1);
+                      preventry = curCombat.turns[prevturn];
+                  }*/
+
+                  return !(entry.tokenId == tokenId); // || preventry.tokenId == tokenId);
+              }
+
+              return true;
+          }
+
+          let movement = this.getFlag(MODULE_NAME, "movement") || game.settings.get(MODULE_NAME, "movement") || "free";
+
+          if (!game.user.isGM) {
+              if (movement == "none" ||
+                  (movement == "combat" && blockCombat(this.id))) {
+                  //prevent the token from moving
+                  if (!this.getFlag(MODULE_NAME, "notified") || false) {
+                      ui.notifications.warn(movement == "combat" ? "Movement is set to combat turn, it's currently not your turn" : "Movement is currently locked");
+                      this.setFlag(MODULE_NAME, "notified", true);
+                      setTimeout(function (token) {
+                          log('unsetting notified', token);
+                          token.unsetFlag(MODULE_NAME, "notified");
+                      }, 30000, this);
+                  }
+                  return false;
+              }
+          }
+
+          //return oldTokenCanDrag.call(this, user, event);
+          return wrapped(args);
+      }
 
     static ready() {
         CombatDetails.checkCombatTurn();
 
-        game.socket.on('module.combatdetails', CombatDetails.onMessage);
+        game.socket.on('module.'+MODULE_NAME, CombatDetails.onMessage);
         if (game.system.id == "pf2e") {
+            //@ts-ignore
             CombatDetails.abilities = CONFIG.PF2E.abilities;
+            //@ts-ignore
             CombatDetails.skills = CONFIG.PF2E.skills;
+            //@ts-ignore
             CombatDetails.saves = CONFIG.PF2E.saves;
         } else if (game.system.id == "D35E") {
+            //@ts-ignore
             CombatDetails.abilities = CONFIG.D35E.abilities;
+            //@ts-ignore
             CombatDetails.skills = CONFIG.D35E.skills;
+            //@ts-ignore
             CombatDetails.saves = CONFIG.D35E.savingThrows;
         } else {
+            //@ts-ignore
             CombatDetails.abilities = CONFIG.DND5E.abilities;
+            //@ts-ignore
             CombatDetails.skills = CONFIG.DND5E.skills;
+            //@ts-ignore
             CombatDetails.saves = CONFIG.DND5E.abilities;
         }
 
         //$('#board').on('mousedown', CombatDetails._onClickLeft);
-        canvas.stage.on("mousedown", CombatDetails.moveTokens);
+        getCanvas().stage.on("mousedown", CombatDetails.moveTokens);
     }
 
     static async moveTokens(event) {
-        if (game.user.isGM && game.keyboard.isDown("m") && canvas.tokens.controlled.length > 0) {
-            let pos = event.data.getLocalPosition(canvas.app.stage);
+        if (game.user.isGM && game.keyboard.isDown("m") && getCanvas().tokens.controlled.length > 0) {
+            let pos = event.data.getLocalPosition(getCanvas().app.stage);
             let mid = {
-                x: canvas.tokens.controlled[0].data.x,
-                y: canvas.tokens.controlled[0].data.y
+                x: getCanvas().tokens.controlled[0].data.x,
+                y: getCanvas().tokens.controlled[0].data.y
             };
-            for (let i = 1; i < canvas.tokens.controlled.length; i++) {
-                mid.x += canvas.tokens.controlled[i].data.x;
-                mid.y += canvas.tokens.controlled[i].data.y;
+            for (let i = 1; i < getCanvas().tokens.controlled.length; i++) {
+                mid.x += getCanvas().tokens.controlled[i].data.x;
+                mid.y += getCanvas().tokens.controlled[i].data.y;
             }
-            mid.x = (mid.x / canvas.tokens.controlled.length);
-            mid.y = (mid.y / canvas.tokens.controlled.length);
+            mid.x = (mid.x / getCanvas().tokens.controlled.length);
+            mid.y = (mid.y / getCanvas().tokens.controlled.length);
 
-            let tokens = canvas.tokens.controlled.map(t => { return t.id; })
+            let tokens = getCanvas().tokens.controlled.map(t => { return t.id; })
             for (let i = 0; i < tokens.length; i++) {
-                let t = canvas.tokens.get(tokens[i]);
+                let t = getCanvas().tokens.get(tokens[i]);
                 let offsetx = mid.x - t.data.x;
                 let offsety = mid.y - t.data.y;
-                let gridPt = canvas.grid.grid.getGridPositionFromPixels(pos.x - offsetx, pos.y - offsety);
-                let px = canvas.grid.grid.getPixelsFromGridPosition(gridPt[0], gridPt[1]);
+                let gridPt = getCanvas().grid.grid.getGridPositionFromPixels(pos.x - offsetx, pos.y - offsety);
+                let px = getCanvas().grid.grid.getPixelsFromGridPosition(gridPt[0], gridPt[1]);
 
                 await t.update({ x: px[0], y: px[1] }, { animate: false });
             }
@@ -260,10 +284,10 @@ export class CombatDetails {
             } break;
             case 'assignxp': {
                 let message = game.messages.get(data.msgid);
-                AssignXP.onAssignXP(data.actorid, message);
+                AssignXP.onAssignXP(data.actorid, message, undefined);
             } break;
             case 'movementchange': {
-                if (data.tokenid == undefined || canvas.tokens.get(data.tokenid)?.owner) {
+                if (data.tokenid == undefined || getCanvas().tokens.get(data.tokenid)?.owner) {
                     ui.notifications.warn(data.msg);
                     log('movement change');
                 }
@@ -272,22 +296,22 @@ export class CombatDetails {
     }
 
     static doDisplayTurn() {
-        if (!game.settings.get("combatdetails", "showcurrentup")) {
+        if (!game.settings.get(MODULE_NAME, "showcurrentup")) {
             return;
         }
 
         if (!CombatDetails.READY) {
             CombatDetails.init();
         }
-        ui.notifications.warn(i18n("CombatDetails.Turn"));
+        ui.notifications.warn(i18n(MODULE_NAME+".Turn"));
 
         // play a sound
         if(volume() > 0)
-	        AudioHelper.play({ src: CombatDetails.TURN_SOUND, volume: volume() });
+	        AudioHelper.play({ src: CombatDetails.TURN_SOUND, volume: volume(), autoplay: false, loop: false}, true);
     }
 
     static doDisplayNext() {
-        if (!game.settings.get("combatdetails", "shownextup")) {
+        if (!game.settings.get(MODULE_NAME, "shownextup")) {
             return;
         }
 
@@ -295,10 +319,10 @@ export class CombatDetails {
             CombatDetails.init();
         }
 
-        ui.notifications.info(i18n("CombatDetails.Next"));
+        ui.notifications.info(i18n(MODULE_NAME+".Next"));
         // play a sound
         if(volume() > 0)
-	        AudioHelper.play({ src: CombatDetails.NEXT_SOUND, volume: volume() });
+	        AudioHelper.play({ src: CombatDetails.NEXT_SOUND, volume: volume(), autoplay: false, loop: false}, true);
     }
 
     /**
@@ -384,10 +408,13 @@ export class CombatDetails {
                     $(this).prev().click();
                     if (event.stopPropagation) event.stopPropagation();
                     if (event.preventDefault) event.preventDefault();
+                    //@ts-ignore
                     event.cancelBubble = true;
+                    //@ts-ignore
                     event.returnValue = false;
                     return false;
                 }));
+            //@ts-ignore
             div[0].src = $(this).attr('src');
         });
         $('.col.right .control-icon.effects .status-effects', html).append(
@@ -431,11 +458,11 @@ export class CombatDetails {
     }
 
     static getCRChallengeName (data) {
-        if (data.cr < data.apl) return i18n("COMBATDETAILS.easy");
-        else if (data.cr === data.apl) return i18n("COMBATDETAILS.average");
-        else if (data.cr === data.apl + 1) return i18n("COMBATDETAILS.challenging");
-        else if (data.cr === data.apl + 2) return i18n("COMBATDETAILS.hard");
-        else if (data.cr >= data.apl + 3) return i18n("COMBATDETAILS.epic");
+        if (data.cr < data.apl) return i18n(MODULE_NAME+".easy");
+        else if (data.cr === data.apl) return i18n(MODULE_NAME+".average");
+        else if (data.cr === data.apl + 1) return i18n(MODULE_NAME+".challenging");
+        else if (data.cr === data.apl + 2) return i18n(MODULE_NAME+".hard");
+        else if (data.cr >= data.apl + 3) return i18n(MODULE_NAME+".epic");
         else return '';
     }
 
@@ -470,7 +497,8 @@ export class CombatDetails {
     }
 
     static getDiceSound(hasMaestroSound = false) {
-        const has3DDiceSound = game.dice3d ? game.settings.get("dice-so-nice", "settings").enabled : false;
+        //@ts-ignore
+        const has3DDiceSound = game.dice3d ? game.settings.get("dice-so-nice", "settings")?.enabled : false;
         const playRollSounds = true; //game.settings.get("betterrolls5e", "playRollSounds")
 
         if (playRollSounds && !has3DDiceSound && !hasMaestroSound) {
@@ -514,17 +542,18 @@ export class CombatDetails {
         CombatDetails.canvasImage = new Image();
         CombatDetails.canvasImage.addEventListener('load', () => {
             let canvas = document.createElement('canvas');
-            let context = canvas.getContext('2d');
-            let width = canvas.width = CombatDetails.canvasImage.naturalWidth;
-            let height = canvas.height = CombatDetails.canvasImage.naturalHeight;
+            //@ts-ignore
+            let context = getCanvas().getContext('2d');
+            let width = getCanvas().dimensions.width = CombatDetails.canvasImage.naturalWidth;
+            let height = getCanvas().dimensions.height = CombatDetails.canvasImage.naturalHeight;
             context.drawImage(CombatDetails.canvasImage, 0, 0, width, height);
 
-            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            const imageData = context.getImageData(0, 0, getCanvas().dimensions.width, getCanvas().dimensions.height);
             const pixelCount = CombatDetails.canvasImage.width * CombatDetails.canvasImage.height;
 
             const pixelArray = CombatDetails.createPixelArray(imageData.data, pixelCount, 10);
 
-            canvas.remove();
+            //getCanvas().remove();
 
             // Send array to quantize function which clusters values
             // using median cut algorithm
@@ -544,44 +573,44 @@ export class CombatDetails {
         CombatDetails.canvasImage.src = url;
     };
 
-    static async createThumbnail(img) {
-        const newImage = img !== undefined;
+    // static async createThumbnail(img) {
+    //     const newImage = img !== undefined;
 
-        // Load required textures to create the thumbnail
-        img = img ?? this.data.img;
-        const toLoad = [img];
-        await TextureLoader.loader.load(toLoad);
+    //     // Load required textures to create the thumbnail
+    //     img = img ?? this.data.img;
+    //     const toLoad = [img];
+    //     await TextureLoader.loader.load(toLoad);
 
-        // First load the background texture to get dimensions
-        const bg = img ? await loadTexture(img) : null;
+    //     // First load the background texture to get dimensions
+    //     const bg = img ? await loadTexture(img) : null;
 
-        // Get the target dimensions for the canvas
-        const dims = duplicate(this.data);
-        if (newImage) {
-            dims.width = bg.width;
-            dims.height = bg.height;
-        }
-        const d = Canvas.getDimensions(dims);
+    //     // Get the target dimensions for the canvas
+    //     const dims = duplicate(this.data);
+    //     if (newImage) {
+    //         dims.width = bg.width;
+    //         dims.height = bg.height;
+    //     }
+    //     const d = Canvas.getDimensions(dims);
 
-        // Create a container and add a transparent graphic to enforce the size
-        const c = new PIXI.Container();
-        const g = c.addChild(new PIXI.Graphics());
-        g.beginFill(0xFFFFFF, 0.0).drawRect(0, 0, d.sceneWidth, d.sceneHeight);
+    //     // Create a container and add a transparent graphic to enforce the size
+    //     const c = new PIXI.Container();
+    //     const g = c.addChild(new PIXI.Graphics());
+    //     g.beginFill(0xFFFFFF, 0.0).drawRect(0, 0, d.sceneWidth, d.sceneHeight);
 
-        // Add the background image
-        if (bg) {
-            const s = new PIXI.Sprite(bg);
-            s.width = d.sceneWidth;
-            s.height = d.sceneHeight;
-            c.addChild(s);
-        }
+    //     // Add the background image
+    //     if (bg) {
+    //         const s = new PIXI.Sprite(bg);
+    //         s.width = d.sceneWidth;
+    //         s.height = d.sceneHeight;
+    //         c.addChild(s);
+    //     }
 
-        // Render the container to a thumbnail
-        return ImageHelper.createThumbnail(c, { width, height });
-    }
+    //     // Render the container to a thumbnail
+    //     return ImageHelper.createThumbnail(c, { width, height });
+    // }
 
     static async updateSceneBackground(hexCode) {
-        await CombatDetails.currentScene.update({ backgroundColor: hexCode });
+        await CombatDetails.currentScene.update({ backgroundColor: hexCode },{});
     }
 }
 
@@ -591,193 +620,193 @@ export class CombatDetails {
 /* ------------------------------------ */
 /* Initialize module					*/
 /* ------------------------------------ */
-Hooks.once('init', async function () {
-    log('Initializing Combat Details');
-    // Assign custom classes and constants here
-    // Register custom module settings
-    CombatDetails.init();
-});
-/**
- * Handle combatant update
- */
-Hooks.on("updateCombatant", function (context, parentId, data) {
-  const combat = game.combats.get(parentId);
-  if (combat) {
-    const combatant = combat.data.combatants.find((o) => o.id === data.id);
+// Hooks.once('init', async function () {
+//     log('Initializing Combat Details');
+//     // Assign custom classes and constants here
+//     // Register custom module settings
+//     CombatDetails.init();
+// });
+// /**
+//  * Handle combatant update
+//  */
+// Hooks.on("updateCombatant", function (context, parentId, data) {
+//   const combat = game.combats.get(parentId);
+//   if (combat) {
+//     const combatant = combat.data.combatants.find((o) => o.id === data.id);
 
-    if (combatant.actor.owner) CombatDetails.checkCombatTurn();
-  }
-});
+//     if (combatant.actor.owner) CombatDetails.checkCombatTurn();
+//   }
+// });
 
-/**
- * Handle combatant delete
- */
-Hooks.on("deleteCombatant", function (context, parentId, data) {
-  let combat = game.combats.get(parentId);
-  CombatDetails.checkCombatTurn();
-});
+// /**
+//  * Handle combatant delete
+//  */
+// Hooks.on("deleteCombatant", function (context, parentId, data) {
+//   let combat = game.combats.get(parentId);
+//   CombatDetails.checkCombatTurn();
+// });
 
-/**
- * Handle combatant added
- */
-Hooks.on("addCombatant", function (context, parentId, data) {
-  let combat = game.combats.get(parentId);
-  let combatant = combat.data.combatants.find((o) => o.id === data.id);
+// /**
+//  * Handle combatant added
+//  */
+// Hooks.on("addCombatant", function (context, parentId, data) {
+//   let combat = game.combats.get(parentId);
+//   let combatant = combat.data.combatants.find((o) => o.id === data.id);
 
-  if (combatant.actor.owner)
-	  CombatDetails.checkCombatTurn();
-});
+//   if (combatant.actor.owner)
+// 	  CombatDetails.checkCombatTurn();
+// });
 
-/**
- * Combat update hook
- */
+// /**
+//  * Combat update hook
+//  */
 
-Hooks.on("deleteCombat", function (combat) {
-    CombatDetails.tracker = false;   //if the combat gets deleted, make sure to clear this out so that the next time the combat popout gets rendered it repositions the dialog
+// Hooks.on("deleteCombat", function (combat) {
+//     CombatDetails.tracker = false;   //if the combat gets deleted, make sure to clear this out so that the next time the combat popout gets rendered it repositions the dialog
 
-    //set movement to free movement
-    CombatDetails.tokenbar.changeGlobalMovement("free");
+//     //set movement to free movement
+//     CombatDetails.tokenbar.changeGlobalMovement("free");
 
-    new AssignXPApp(combat).render(true);
+//     new AssignXPApp(combat).render(true);
 
-    if (game.combats.combats.length == 0 && game.settings.get("combatdetails", 'close-combat-when-done')) {
-        const tabApp = ui["combat"];
-        tabApp.close();
-    }
+//     if (game.combats.combats.length == 0 && game.settings.get(MODULE_NAME, 'close-combat-when-done')) {
+//         const tabApp = ui["combat"];
+//         tabApp.close();
+//     }
 
-});
+// });
 
-Hooks.on("updateCombat", function (data, delta) {
-    CombatDetails.checkCombatTurn();
+// Hooks.on("updateCombat", function (data, delta) {
+//     CombatDetails.checkCombatTurn();
 
-    $(CombatDetails.tokenbar.tokens).each(function () {
-        this.token.unsetFlag("combatdetails", "nofified");
-    });
+//     $(CombatDetails.tokenbar.tokens).each(function () {
+//         this.token.unsetFlag(MODULE_NAME, "nofified");
+//     });
 
-	log("update combat", data);
-	if(game.settings.get("combatdetails", "opencombat") && delta.round === 1 && data.turn === 0 && data.started === true){
-		//new combat, pop it out
-		const tabApp = ui["combat"];
-		tabApp.renderPopout(tabApp);
+// 	log("update combat", data);
+// 	if(game.settings.get(MODULE_NAME, "opencombat") && delta.round === 1 && data.turn === 0 && data.started === true){
+// 		//new combat, pop it out
+// 		const tabApp = ui["combat"];
+// 		tabApp.renderPopout(tabApp);
 
-        if (ui.sidebar.activeTab !== "chat")
-            ui.sidebar.activateTab("chat");
+//         if (ui.sidebar.activeTab !== "chat")
+//             ui.sidebar.activateTab("chat");
 
-        //set movement to combat only
-        CombatDetails.tokenbar.changeGlobalMovement("combat");
-    }
+//         //set movement to combat only
+//         CombatDetails.tokenbar.changeGlobalMovement("combat");
+//     }
 
-    if (combatposition() !== '' && delta.active === true) {
-        //+++ make sure if it's not this players turn and it's not the GM to add padding for the button at the bottom
-        CombatDetails.tracker = false;   //delete this so that the next render will reposition the popout, changin between combats changes the height
-    }
+//     if (combatposition() !== '' && delta.active === true) {
+//         //+++ make sure if it's not this players turn and it's not the GM to add padding for the button at the bottom
+//         CombatDetails.tracker = false;   //delete this so that the next render will reposition the popout, changin between combats changes the height
+//     }
 
-	if (!game.user.isGM && Object.keys(delta).some((k) => k === "round")) {
-		AudioHelper.play({
-		  src: CombatDetails.ROUND_SOUND,
-		  volume: volume()
-		});
-	}
-});
+// 	if (!game.user.isGM && Object.keys(delta).some((k) => k === "round")) {
+// 		AudioHelper.play({
+// 		  src: CombatDetails.ROUND_SOUND,
+// 		  volume: volume()
+// 		});
+// 	}
+// });
 
-/**
- * Ready hook
- */
-Hooks.on("ready", CombatDetails.ready);
+// /**
+//  * Ready hook
+//  */
+// Hooks.on("ready", CombatDetails.ready);
 
-Hooks.on('renderCombatTracker', async (app, html, options) => {
-	if(!CombatDetails.tracker && app.options.id == "combat-popout"){
-		CombatDetails.tracker = true;
+// Hooks.on('renderCombatTracker', async (app, html, options) => {
+// 	if(!CombatDetails.tracker && app.options.id == "combat-popout"){
+// 		CombatDetails.tracker = true;
 
-		if(combatposition() !== ''){
-            CombatDetails.repositionCombat(app);
-		}
-	}
-});
+// 		if(combatposition() !== ''){
+//             CombatDetails.repositionCombat(app);
+// 		}
+// 	}
+// });
 
-Hooks.on('closeCombatTracker', async (app, html) => {
-	CombatDetails.tracker = false;
-});
+// Hooks.on('closeCombatTracker', async (app, html) => {
+// 	CombatDetails.tracker = false;
+// });
 
-Hooks.on('renderTokenHUD', async (app, html, options) => {
-    CombatDetails.element = html;
-    CombatDetails.tokenHUD = app;
-    $('.col.left .control-icon.target', html).insertBefore($('#token-hud .col.left .control-icon.config'));
-});
+// Hooks.on('renderTokenHUD', async (app, html, options) => {
+//     CombatDetails.element = html;
+//     CombatDetails.tokenHUD = app;
+//     $('.col.left .control-icon.target', html).insertBefore($('#token-hud .col.left .control-icon.config'));
+// });
 
-Hooks.on('renderCombatTracker', async (app, html, options) => {
-    if (game.user.isGM && game.combat && !game.combat.started && game.settings.get("combatdetails", 'show-combat-cr')) {
-        //calculate CR
-        let data = CombatDetails.getCR(game.combat);
+// Hooks.on('renderCombatTracker', async (app, html, options) => {
+//     if (game.user.isGM && game.combat && !game.combat.started && game.settings.get(MODULE_NAME, 'show-combat-cr')) {
+//         //calculate CR
+//         let data = CombatDetails.getCR(game.combat);
 
-        if ($('#combat-round .encounter-cr-row').length == 0 && game.combat.data.combatants.length > 0) {
-            $('<nav>').addClass('encounters flexrow encounter-cr-row')
-                .append($('<h3>').html('CR: ' + CombatDetails.getCRText(data.cr)))
-                .append($('<div>').addClass('encounter-cr').attr('rating', CombatDetails.getCRChallenge(data)).html(CombatDetails.getCRChallengeName(data)))
-                .insertAfter($('#combat-round .encounters:last'));
-        }
-    }
+//         if ($('#combat-round .encounter-cr-row').length == 0 && game.combat.data.combatants.length > 0) {
+//             $('<nav>').addClass('encounters flexrow encounter-cr-row')
+//                 .append($('<h3>').html('CR: ' + CombatDetails.getCRText(data.cr)))
+//                 .append($('<div>').addClass('encounter-cr').attr('rating', CombatDetails.getCRChallenge(data)).html(CombatDetails.getCRChallengeName(data)))
+//                 .insertAfter($('#combat-round .encounters:last'));
+//         }
+//     }
 
-    if (game.combat == undefined) {
-        $('#combat-round h3', html).css({ fontSize: '16px', lineHeight: '15px'});
-    }
+//     if (game.combat == undefined) {
+//         $('#combat-round h3', html).css({ fontSize: '16px', lineHeight: '15px'});
+//     }
 
-    if (!game.user.isGM && game.combat && game.combat.started) {
-        $('.combat-control[data-control="previousTurn"],.combat-control[data-control="nextTurn"]:last').css({visibility:'hidden'});
-    }
-});
+//     if (!game.user.isGM && game.combat && game.combat.started) {
+//         $('.combat-control[data-control="previousTurn"],.combat-control[data-control="nextTurn"]:last').css({visibility:'hidden'});
+//     }
+// });
 
-Hooks.on('renderChatLog', (app, html, options) => {
-    if (game.user.isGM) {
-        $('<a>').addClass('button confetti').html('🎉').insertAfter($('#chat-controls .chat-control-icon', html)).on('click', function () {
-            if (window.confetti) {
-                const shootConfettiProps = window.confetti.getShootConfettiProps(2);
-                window.confetti.shootConfetti(shootConfettiProps);
-            }
-        });
-        $('.confetti-buttons', html).hide();
-    }
-});
+// Hooks.on('renderChatLog', (app, html, options) => {
+//     if (game.user.isGM) {
+//         $('<a>').addClass('button confetti').html('🎉').insertAfter($('#chat-controls .chat-control-icon', html)).on('click', function () {
+//             if (window.confetti) {
+//                 const shootConfettiProps = window.confetti.getShootConfettiProps(2);
+//                 window.confetti.shootConfetti(shootConfettiProps);
+//             }
+//         });
+//         $('.confetti-buttons', html).hide();
+//     }
+// });
 
-Hooks.on('renderSceneConfig', async (app, html, options) => {
-    if (game.settings.get("combatdetails", 'scene-palette')) {
-        CombatDetails.currentScene = app.object;
+// Hooks.on('renderSceneConfig', async (app, html, options) => {
+//     if (game.settings.get(MODULE_NAME, 'scene-palette')) {
+//         CombatDetails.currentScene = app.object;
 
-        if (CombatDetails.currentScene.img != undefined) {
-            let backgroundColor = $('input[name="backgroundColor"]').parents('.form-group:first');
+//         if (CombatDetails.currentScene.img != undefined) {
+//             let backgroundColor = $('input[name="backgroundColor"]').parents('.form-group:first');
 
-            $('<div>')
-                .addClass('form-group')
-                .append($('<label>').html('Background Palette'))
-                .append($('<div>').addClass('form-fields palette-fields'))
-                .insertAfter(backgroundColor);
+//             $('<div>')
+//                 .addClass('form-group')
+//                 .append($('<label>').html('Background Palette'))
+//                 .append($('<div>').addClass('form-fields palette-fields'))
+//                 .insertAfter(backgroundColor);
 
-            CombatDetails.getPalette(CombatDetails.currentScene.img);
-            //get dimensions
-            loadTexture(CombatDetails.currentScene.img).then((bg) => {
-                if (bg != undefined) {
-                    $('.background-size.width').html(bg.width);
-                    $('.background-size.height').html(bg.height);
-                }
-            });
-        }
+//             CombatDetails.getPalette(CombatDetails.currentScene.img);
+//             //get dimensions
+//             loadTexture(CombatDetails.currentScene.img).then((bg) => {
+//                 if (bg != undefined) {
+//                     $('.background-size.width').html(bg.width);
+//                     $('.background-size.height').html(bg.height);
+//                 }
+//             });
+//         }
 
-        $('<div>')
-            .addClass('background-size width')
-            .insertAfter($('input[name="width"]'));
-        $('<div>')
-            .addClass('background-size height')
-            .insertAfter($('input[name="height"]'));
+//         $('<div>')
+//             .addClass('background-size width')
+//             .insertAfter($('input[name="width"]'));
+//         $('<div>')
+//             .addClass('background-size height')
+//             .insertAfter($('input[name="height"]'));
 
-        $('input.image[name="img"]').on('change', function () {
-            let img = $(this).val();
-            CombatDetails.getPalette(img);
-            loadTexture(img).then((bg) => {
-                if (bg != undefined) {
-                    $('.background-size.width').html(bg.width);
-                    $('.background-size.height').html(bg.height);
-                }
-            });
-        })
-    }
-});
+//         $('input.image[name="img"]').on('change', function () {
+//             let img = $(this).val();
+//             CombatDetails.getPalette(img);
+//             loadTexture(img).then((bg) => {
+//                 if (bg != undefined) {
+//                     $('.background-size.width').html(bg.width);
+//                     $('.background-size.height').html(bg.height);
+//                 }
+//             });
+//         })
+//     }
+// });

@@ -1,7 +1,13 @@
-import { CombatDetails } from "../combatdetails.js";
-import { log } from "../combatdetails.js";
+import { log } from "../combatdetails";
+import { CombatDetails } from "./combatdetailsimpl";
+import { getCanvas, MODULE_NAME } from "./settings";
+
 
 export class AssignXPApp extends Application {
+
+    xp:number;
+    actors:any[];
+
     constructor(combat, options) {
         super(options);
 
@@ -12,16 +18,17 @@ export class AssignXPApp extends Application {
             this.actors = [];
             $(combat.combatants).each(function () {
                 if (this.token?.disposition != 1) {
-                    that.xp += this.actor?.data.data.details.xp.value;
-                } else if (this.actor)
-                    that.actors.push({
-                        actor: this.actor,
-                        disabled: false,
-                        xp: 0
-                    });
+                  that.xp += this.actor?.data.data.details.xp.value;
+                } else if (this.actor){
+                  that.actors.push({
+                      actor: this.actor,
+                      disabled: false,
+                      xp: 0
+                  });
+                }
             });
         } else {
-            this.actors = canvas.tokens.placeables.filter(t => {
+            this.actors = getCanvas().tokens.placeables.filter(t => {
                 return t.actor?.hasPlayerOwner && t.actor?.data.type == 'character'
             }).map(t => {
                 return {
@@ -32,14 +39,15 @@ export class AssignXPApp extends Application {
             });
         }
 
-        this.changeXP();
+        this.changeXP(undefined);
     }
 
     static get defaultOptions() {
+        //@ts-ignore
         return mergeObject(super.defaultOptions, {
             id: "assignexperience",
             title: "Assign XP",
-            template: "./modules/combatdetails/templates/assignxp.html",
+            template: `/modules/${MODULE_NAME}/templates/assignxp.html`,
             width: 400,
             height: 400,
             popOut: true
@@ -54,10 +62,11 @@ export class AssignXPApp extends Application {
     }
 
     changeXP(xp) {
-        if(xp != undefined)
+        if(xp != undefined){
             this.xp = xp;
+        }
 
-        let charxp = parseInt(this.xp / this.actors.filter(a => { return !a.disabled; }).length);
+        let charxp = parseInt(String(this.xp / this.actors.filter(a => { return !a.disabled; }).length));
 
         $(this.actors).each(function(){
             this.xp = (this.disabled ? 0 : charxp);
@@ -66,15 +75,16 @@ export class AssignXPApp extends Application {
 
     addActor() {
         //drag drop?
-        this.changeXP();
+        this.changeXP(undefined);
         this.render(true);
     }
 
     disableActor(id) {
         let actor = this.actors.find(a => { return a.actor.id === id; });
-        if (actor != undefined)
+        if (actor != undefined){
             actor.disabled = !actor.disabled;
-        this.changeXP();
+        }
+        this.changeXP(undefined);
         this.render(true);
     }
 
@@ -97,15 +107,15 @@ export class AssignXPApp extends Application {
                 xp: this.xp,
                 actors: chatactors
             };
-            const html = await renderTemplate("./modules/combatdetails/templates/assignxpchatmsg.html", requestdata);
+            const html = await renderTemplate(`/modules/${MODULE_NAME}/templates/assignxpchatmsg.html`, requestdata);
 
             log('create chat request');
             let chatData = {
                 user: game.user._id,
                 content: html
             };
-            
-            setProperty(chatData, "flags.combatdetails", requestdata);
+
+            setProperty(chatData, "flags."+MODULE_NAME, requestdata);
             ChatMessage.create(chatData, {});
             this.close();
         } else
@@ -125,7 +135,7 @@ export class AssignXPApp extends Application {
         $('.dialog-buttons.assign', html).click($.proxy(this.assign, this));
 
         $('#assign-xp-value', html).blur(function () {
-            let xp = parseInt($(this).val());
+            let xp = parseInt(String($(this).val()));
             that.changeXP.call(that, xp);
             that.render(true);
         });
@@ -135,7 +145,7 @@ export class AssignXPApp extends Application {
 export class AssignXP {
     static async onAssignXP(actorid, message, e) {
         if (game.user.isGM) {
-            let actors = JSON.parse(JSON.stringify(message.getFlag('combatdetails', 'actors')));
+            let actors = JSON.parse(JSON.stringify(message.getFlag(MODULE_NAME, 'actors')));
             let msgactor = actors.find(a => { return a.id == actorid; });
 
             if (!msgactor.assigned) {
@@ -146,7 +156,7 @@ export class AssignXP {
 
                 msgactor.assigned = true;
             }
-            await message.setFlag('combatdetails', 'actors', actors);
+            await message.setFlag(MODULE_NAME, 'actors', actors);
         } else {
             $(e.target).hide();
             game.socket.emit(
@@ -164,11 +174,11 @@ export class AssignXP {
 
     static async onAssignAllXP(message) {
         if (game.user.isGM) {
-            let actors = message.getFlag('combatdetails', 'actors');
+            let actors = message.getFlag(MODULE_NAME, 'actors');
             for (let i = 0; i < actors.length; i++) {
                 let msgactor = actors[i];
                 if (!msgactor.assigned) {
-                    await AssignXP.onAssignXP(msgactor.id, message);
+                    await AssignXP.onAssignXP(msgactor.id, message, undefined);
                 }
             };
         }
@@ -185,7 +195,7 @@ Hooks.on("renderChatMessage", (message, html, data) => {
 
         $('.assign-all', html).click($.proxy(AssignXP.onAssignAllXP, AssignXP, message));
 
-        let actors = message.getFlag('combatdetails', 'actors');
+        let actors = <any[]>message.getFlag(MODULE_NAME, 'actors');
 
         let items = $('.item', html);
         for (let i = 0; i < items.length; i++) {
